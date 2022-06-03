@@ -1,0 +1,15 @@
+#!/bin/sh
+":"; exec emacs --quick --script "$0" "$@" # -*-mode: emacs-lisp; lexical-binding: t-*-
+
+(setq debug-on-error nil)
+
+(add-to-list 'load-path (expand-file-name "../"))
+(require 'ntoml)
+
+(setq stdin (read-from-minibuffer ""))
+
+(setq encoded (ntoml-encode (json-parse-string stdin)))
+
+(message "%s" encoded)
+
+(setq argv nil)

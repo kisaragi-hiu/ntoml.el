@@ -28,6 +28,22 @@
 
 ;;; Code:
 
+(defun ntoml-encode (value)
+  "Encode VALUE as TOML."
+  (json-serialize value))
+
+(defun ntoml-decode-buffer ()
+  "Decode current buffer contents as TOML and return the Elisp value."
+  (save-excursion
+    (goto-char (point-min))
+    (json-parse-buffer)))
+
+(defun ntoml-decode (toml-string)
+  "Decode TOML-STRING into Elisp value."
+  (with-temp-buffer
+    (insert toml-string)
+    (ntoml-decode-buffer)))
+
 (provide 'ntoml)
 
 ;;; ntoml.el ends here

@@ -1,2 +1,7 @@
 .cask
 *.elc
+
+tests/*
+!tests/*.el
+!tests/decoder-wrapper
+!tests/encoder-wrapper
