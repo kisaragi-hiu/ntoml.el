@@ -41,6 +41,12 @@
 
 This is a list of keys.")
 
+(defvar ntoml--reading-array-table nil
+  "Whether we're inserting into an array table.")
+
+(defvar ntoml--array-table-pending nil
+  "Value to be inserted into the current table.")
+
 (defmacro ntoml-preserve-point-on-fail (&rest body)
   "Run BODY.
 
@@ -51,6 +57,14 @@ BODY."
      (or (progn ,@body)
          (prog1 nil
            (goto-char start)))))
+
+(defun ntoml-signal (sym &optional value)
+  (let ((data (list :message (get sym 'error-message)
+                    :point (point))))
+    (signal sym
+            (if value
+                (plist-put data :value value)
+              data))))
 
 (defun ntoml-regexp-or (&rest regexps)
   "Return a regexp that matches any of REGEXPS."
@@ -131,13 +145,18 @@ Return nil if point hasn't moved."
 
 (defun ntoml-read-toml ()
   (setq ntoml--current nil
-        ntoml--current-location nil)
+        ntoml--current-location nil
+        ntoml--reading-array-table nil
+        ntoml--array-table-pending nil)
   (ntoml-read-expression)
   (while (and (ntoml-read-newline)
               (ntoml-read-expression)))
-  (prog1 ntoml--current
+  (ntoml-array-table-flush)
+  (prog1 (nreverse ntoml--current)
     (setq ntoml--current nil
-          ntoml--current-location nil)))
+          ntoml--current-location nil
+          ntoml--reading-array-table nil
+          ntoml--array-table-pending nil)))
 
 (defun ntoml-read-expression ()
   (ntoml-skipped-region
@@ -167,15 +186,21 @@ Return nil if point hasn't moved."
 
 ;;;; KeyVal
 
+(define-error 'ntoml-keyval-invalid "Invalid key-value pair")
+
 (defun ntoml-read-keyval ()
   (let (k v)
     (when (and (setq k (ntoml-read-key))
-               (ntoml-read-keyval-sep)
-               (setq v (ntoml-read-val)))
-      (setq ntoml--current
-            (a-assoc-in ntoml--current
-                        (append ntoml--current-location (list k))
-                        v)))))
+               (ntoml-read-keyval-sep))
+      (setq v (ntoml-read-val))
+      (unless v
+        (ntoml-signal 'ntoml-keyval-invalid))
+      (if ntoml--reading-array-table
+          (push (cons k v) ntoml--array-table-pending)
+        (setq ntoml--current
+              (a-assoc-in ntoml--current
+                          (append ntoml--current-location (list k))
+                          v))))))
 
 (defun ntoml-read-keyval-sep ()
   (ntoml-read-whitespace)
@@ -337,10 +362,6 @@ Return nil if point hasn't moved."
 
 (define-error 'ntoml-integer-leading-zero "Integer has leading zero")
 
-(defun ntoml-signal (sym data)
-  (signal sym (append (list :message (get sym 'error-message))
-                      data)))
-
 (defun ntoml-read-integer ()
   (let ((value (ntoml-skipped-region
                  (or
@@ -359,8 +380,7 @@ Return nil if point hasn't moved."
             (t
              (when (equal ?0 (elt value 0))
                (ntoml-signal 'ntoml-integer-leading-zero
-                             (list :value value
-                                   :point (point))))
+                             value))
              (string-to-number value))))))
 
 ;;;; DONE Float
@@ -461,25 +481,60 @@ Return nil if point hasn't moved."
 
 ;;;; Table
 
+(define-error 'ntoml-table-key-invalid "Invalid table key")
+(define-error 'ntoml-table-trailing-garbage "Trailing garbage after table key")
+
+(defun ntoml-array-table-flush ()
+  (when ntoml--reading-array-table
+    (let ((current-array (a-get-in ntoml--current ntoml--current-location)))
+      (setq
+       ntoml--current
+       (a-assoc-in
+        ntoml--current
+        ntoml--current-location
+        (vconcat
+         current-array
+         (list (reverse ntoml--array-table-pending))))))
+    (setq ntoml--array-table-pending nil)))
+
 (defun ntoml-read-table ()
-  (or (ntoml-read-std-table)
-      (ntoml-read-array-table)))
+  (prog1 (or (ntoml-read-array-table)
+             (ntoml-read-std-table))
+    (ntoml-read-whitespace)
+    (ntoml-read-comment)
+    (unless (eolp)
+      (ntoml-signal 'ntoml-table-trailing-garbage))))
 
 (defun ntoml-read-std-table ()
+  "Read a standard table.
+
+On success:
+
+- store keys into `ntoml--current-location'
+- disable `ntoml--reading-array-table'
+- ensure keys exists in `ntoml--current'
+- return keys
+
+When we're not reading a standard table, return nil.
+
+When we're reading something invalid, signal an error."
   (ntoml-preserve-point-on-fail
     (let (keys)
       (when (ntoml-skip-forward-regexp (rx "[") :once)
         (ntoml-read-whitespace)
         (setq keys (ntoml-read-key))
         (ntoml-read-whitespace)
-        (when (ntoml-skip-forward-regexp (rx "]") :once)
-          (when keys
-            (unless (listp keys)
-              (setq keys (list keys)))
-            (setq ntoml--current-location keys)
-            (unless (a-get-in ntoml--current keys)
-              (setq ntoml--current (a-assoc-in ntoml--current keys nil))))
-          t)))))
+        (if (ntoml-skip-forward-regexp (rx "]") :once)
+            (when keys
+              (ntoml-array-table-flush)
+              (setq ntoml--reading-array-table nil)
+              (unless (listp keys)
+                (setq keys (list keys)))
+              (setq ntoml--current-location keys)
+              (unless (a-get-in ntoml--current keys)
+                (setq ntoml--current (a-assoc-in ntoml--current keys nil)))
+              keys)
+          (ntoml-signal 'ntoml-table-key-invalid))))))
 
 (defun ntoml-read-inline-table ()
   (ntoml-preserve-point-on-fail
@@ -500,11 +555,36 @@ Return nil if point hasn't moved."
                    (ntoml-read-whitespace))))
 
 (defun ntoml-read-array-table ()
-  (when (ntoml-skip-forward-regexp (rx "[["))
-    (ntoml-read-whitespace)
-    (ntoml-read-key)
-    (ntoml-read-whitespace)
-    (ntoml-skip-forward-regexp (rx "]]"))))
+  "Read an array table.
+
+On success:
+
+- store keys into `ntoml--current-location'
+- enable `ntoml--reading-array-table'
+- ensure keys exists in `ntoml--current'
+- return keys
+
+When we're not reading an array table, return nil.
+
+When we're reading something invalid, signal an error."
+  (ntoml-preserve-point-on-fail
+    (let (keys)
+      (when (ntoml-skip-forward-regexp (rx "[[") :once)
+        (ntoml-read-whitespace)
+        (setq keys (ntoml-read-key))
+        (ntoml-read-whitespace)
+        (if (ntoml-skip-forward-regexp (rx "]]") :once)
+            (when keys
+              (unless (listp keys)
+                (setq keys (list keys)))
+              (ntoml-array-table-flush)
+              (setq ntoml--current-location keys
+                    ntoml--reading-array-table t
+                    ntoml--array-table-pending nil)
+              (unless (a-get-in ntoml--current keys)
+                (setq ntoml--current (a-assoc-in ntoml--current keys [])))
+              keys)
+          (ntoml-signal 'ntoml-table-key-invalid))))))
 
 ;; Inline Table
 ;; Array Table
