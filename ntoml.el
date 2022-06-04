@@ -47,6 +47,9 @@ This is a list of keys.")
 (defvar ntoml--array-table-pending nil
   "Value to be inserted into the current table.")
 
+(defvar ntoml--seen-keys nil
+  "List of keys that we've seen.")
+
 (defmacro ntoml-preserve-point-on-fail (&rest body)
   "Run BODY.
 
@@ -143,20 +146,21 @@ Return nil if point hasn't moved."
                                  (in (#x20 . #x7F))
                                  (in (#x80 . #x10FFFF)))))
 
-(defun ntoml-read-toml ()
+(defun ntoml-reset-state ()
   (setq ntoml--current nil
         ntoml--current-location nil
         ntoml--reading-array-table nil
-        ntoml--array-table-pending nil)
+        ntoml--array-table-pending nil
+        ntoml--seen-keys nil))
+
+(defun ntoml-read-toml ()
+  (ntoml-reset-state)
   (ntoml-read-expression)
   (while (and (ntoml-read-newline)
               (ntoml-read-expression)))
   (ntoml-array-table-flush)
   (prog1 (nreverse ntoml--current)
-    (setq ntoml--current nil
-          ntoml--current-location nil
-          ntoml--reading-array-table nil
-          ntoml--array-table-pending nil)))
+    (ntoml-reset-state)))
 
 (defun ntoml-read-expression ()
   (ntoml-skipped-region
@@ -484,6 +488,7 @@ Return nil if point hasn't moved."
 (define-error 'ntoml-table-key-invalid "Invalid table key")
 (define-error 'ntoml-table-trailing-garbage "Trailing garbage after table key")
 (define-error 'ntoml-table-redefine "Tried to use non-table key as table")
+(define-error 'ntoml-table-duplicate "Duplicate key")
 
 (defun ntoml-array-table-flush ()
   (when ntoml--reading-array-table
@@ -531,6 +536,9 @@ When we're reading something invalid, signal an error."
               (setq ntoml--reading-array-table nil)
               (unless (listp keys)
                 (setq keys (list keys)))
+              (when (member keys ntoml--seen-keys)
+                (ntoml-signal 'ntoml-table-duplicate))
+              (push keys ntoml--seen-keys)
               (setq ntoml--current-location keys)
               (let ((current-value (a-get-in ntoml--current keys)))
                 (if current-value
