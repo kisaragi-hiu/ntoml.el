@@ -3,6 +3,12 @@
 
 (setq debug-on-error nil)
 
+(dolist (version (directory-files (expand-file-name "../.cask/") t "^[^.]"))
+  ;; This will include the "archives" folder. But there are no .el
+  ;; files in there anyways.
+  (dolist (pkg (directory-files (expand-file-name "elpa" version) t "^[^.]"))
+    (add-to-list 'load-path pkg)))
+
 (add-to-list 'load-path (expand-file-name "../"))
 (require 'ntoml)
 
