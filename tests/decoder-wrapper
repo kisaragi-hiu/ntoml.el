@@ -6,10 +6,44 @@
 (add-to-list 'load-path (expand-file-name "../"))
 (require 'ntoml)
 
+;; Inlined from dash.el
+(defun -cons-pair? (obj)
+  "Return non-nil if OBJ is a true cons pair.
+That is, a cons (A . B) where B is not a list.
+
+Alias: `-cons-pair-p'."
+  (declare (pure t) (side-effect-free t))
+  (nlistp (cdr-safe obj)))
+(defun -tree-map (fn tree)
+  "Apply FN to each element of TREE while preserving the tree structure."
+  (cond
+   ((not tree) nil)
+   ((-cons-pair? tree) (funcall fn tree))
+   ((listp tree)
+    (mapcar (lambda (x) (-tree-map fn x)) tree))
+   (t (funcall fn tree))))
+
+(require 'json)
+
 (setq stdin (read-from-minibuffer ""))
 
 (setq decoded (ntoml-decode stdin))
 
-(message "%s" (json-serialize decoded))
+(princ
+ (json-encode
+  (-tree-map
+   (lambda (it)
+     (pcase it
+       (`(,k . ,v)
+        (cons k
+              (cond ((stringp v)
+                     `((type . "string")
+                       (value . ,v)))
+                    ((integerp v)
+                     `((type . "integer")
+                       (value . ,(number-to-string v))))
+                    (t v))))
+       (_ it)))
+   decoded)))
 
 (setq argv nil)
