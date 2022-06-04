@@ -109,8 +109,8 @@
 (describe "ntoml-read-array"
   (it "parses an array"
     (expect (test-buf #'ntoml-read-array "[1, 2, 3, true]")
-            :to-equal '(1 2 3 t))
+            :to-equal [1 2 3 t])
     (expect (test-buf #'ntoml-read-array "[\"Hello\", 3.5]")
-            :to-equal '("Hello" 3.5))
+            :to-equal ["Hello" 3.5])
     (expect (test-buf #'ntoml-read-array "[]")
-            :to-equal nil)))
+            :to-equal [])))
