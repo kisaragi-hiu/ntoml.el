@@ -360,12 +360,39 @@ Return nil if point hasn't moved."
     ;; TODO: :false-object like json-parse-string
     ("false" :false)))
 
-;;;; Date-Time (RFC 3339)
+;;;; TODO Date-Time (RFC 3339)
 
-;; Offset Date-Time
-;; Local Date-Time
-;; Local Date
-;; Local Time
+(defun ntoml-read-date-time ()
+  (or (ntoml-read-offset-date-time)
+      (ntoml-read-local-date-time)
+      (ntoml-read-local-date)
+      (ntoml-read-local-time)))
+
+(defconst ntoml--time-delim (rx (or "T" "t" " ")))
+
+(defun ntoml-read-full-date ())
+(defun ntoml-read-partial-time ())
+(defun ntoml-read-full-time ())
+
+(defun ntoml-read-offset-date-time ()
+  (ntoml-skipped-region
+    (ntoml-read-full-date)
+    (ntoml-skip-forward-regexp ntoml--time-delim)
+    (ntoml-read-full-time)))
+
+(defun ntoml-read-local-date-time ()
+  (ntoml-skipped-region
+    (ntoml-read-full-date)
+    (ntoml-skip-forward-regexp ntoml--time-delim)
+    (ntoml-read-partial-time)))
+
+(defun ntoml-read-local-date ()
+  (ntoml-skipped-region
+    (ntoml-read-full-date)))
+
+(defun ntoml-read-local-time ()
+  (ntoml-skipped-region
+    (ntoml-read-partial-time)))
 
 ;;;; Array
 
