@@ -47,7 +47,7 @@ Alias: `-cons-pair-p'."
      (pcase it
        (`(,k . ,v)
         (cons k (t/transform-atom v)))
-       (_ it)))
+       (_ (t/transform-atom it))))
    tree))
 
 (defun t/transform-atom (v)
