@@ -15,9 +15,9 @@ tests/toml-test:
 	mv toml-test-v1.1.0-linux-amd64 tests/toml-test
 
 test-decoder: tests/toml-test
-	(cd tests && ./toml-test -v -- bash decoder-wrapper)
+	(cd tests && ./toml-test -- bash decoder-wrapper)
 
 test-encoder: tests/toml-test
-	(cd tests && ./toml-test -v -- bash encoder-wrapper)
+	(cd tests && ./toml-test -- bash encoder-wrapper)
 
 .PHONY: test compile
