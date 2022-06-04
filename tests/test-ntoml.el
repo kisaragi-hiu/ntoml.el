@@ -11,6 +11,24 @@
     (goto-char (point-min))
     (funcall func)))
 
+(describe "ntoml-read-string"
+  (it "ignores  values"
+    (expect (test-buf #'ntoml-read-string "true")
+            :to-be nil)
+    (expect (test-buf #'ntoml-read-string "not quoted")
+            :to-be nil))
+  (it "parses strings"
+    (expect (test-buf #'ntoml-read-string "\"my string\"")
+            :to-equal
+            "my string")
+    (expect (test-buf #'ntoml-read-string "'my literal string'")
+            :to-equal
+            "my literal string"))
+  (xit "escapes sequences strings"
+    (expect (test-buf #'ntoml-read-string "\"my string\\nwith a newline\"")
+            :to-equal
+            "my string\nwith a newline")))
+
 (describe "ntoml-read-boolean"
   (it "ignores strings"
     (expect (test-buf #'ntoml-read-boolean "nottrue")

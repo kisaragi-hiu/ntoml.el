@@ -209,7 +209,7 @@ Return nil if point hasn't moved."
          ntoml--non-ascii)
    "\\|"))
 (defconst ntoml--escape "\\")
-(defconst ntoml--escaped-seq-char
+(defconst ntoml--escape-seq-char
   (rx (or "\""
           "\\"
           "b"
@@ -221,7 +221,7 @@ Return nil if point hasn't moved."
           (seq "U" (= 8 hex)))))
 (defconst ntoml--escaped (format "%s\\(?:%s\\)"
                                  (regexp-quote ntoml--escape)
-                                 ntoml--escaped-seq-char))
+                                 ntoml--escape-seq-char))
 (defconst ntoml--basic-char (ntoml-regexp-or ntoml--basic-unescaped ntoml--escaped))
 (defconst ntoml--literal-char
   (format (rx (or "\t" (in "\x20-\x26") (in "\x28-\x7E") "%s"))
