@@ -101,3 +101,12 @@
             :to-equal #xABCDE0)
     (expect (test-buf #'ntoml-read-integer "0o567_654")
             :to-equal #o567654)))
+
+(describe "ntoml-read-array"
+  (it "parses an array"
+    (expect (test-buf #'ntoml-read-array "[1, 2, 3, true]")
+            :to-equal '(1 2 3 t))
+    (expect (test-buf #'ntoml-read-array "[\"Hello\", 3.5]")
+            :to-equal '("Hello" 3.5))
+    (expect (test-buf #'ntoml-read-array "[]")
+            :to-equal nil)))

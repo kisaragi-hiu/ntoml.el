@@ -29,6 +29,7 @@
 ;;; Code:
 
 (require 'subr-x)
+(require 'cl-lib)
 
 (defun ntoml-regexp-or (&rest regexps)
   "Return a regexp that matches any of REGEXPS."
@@ -132,6 +133,16 @@ Return nil if point hasn't moved."
 (defun ntoml-read-comment ()
   (ntoml-skip-forward-regexp (format (rx "#" (* "%s"))
                                      ntoml--non-eol)))
+
+(defun ntoml-read-ws/comment/newline ()
+  "Skip through whitespace, comment, and newlines."
+  (while (or (ntoml-read-whitespace)
+             (ntoml-read-newline)
+             (let ((begin (point)))
+               (or (and (ntoml-read-comment)
+                        (ntoml-read-newline))
+                   (prog1 nil
+                     (goto-char begin)))))))
 
 ;;;; KeyVal
 
@@ -397,7 +408,22 @@ Return nil if point hasn't moved."
 ;;;; Array
 
 (defun ntoml-read-array ()
-  ())
+  (let ((start (point)) ret)
+    (or (when (ntoml-skip-forward-regexp (rx "["))
+          (setq ret (ntoml-read-array-values))
+          (ntoml-read-ws/comment/newline)
+          (ntoml-skip-forward-regexp (rx "]"))
+          ret)
+        (prog1 nil
+          (goto-char start)))))
+
+(defun ntoml-read-array-values ()
+  (cl-loop
+   do (ntoml-read-ws/comment/newline)
+   when (ntoml-read-val)
+   collect it
+   do (ntoml-read-ws/comment/newline)
+   while (ntoml-skip-forward-regexp (rx ","))))
 
 ;;;; Table
 
