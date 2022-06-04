@@ -40,21 +40,29 @@ Alias: `-cons-pair-p'."
 
 (setq decoded (ntoml-decode stdin))
 
-(princ
- (json-serialize
+(defun t/transform-tree (tree)
   (-tree-map
    (lambda (it)
      (pcase it
        (`(,k . ,v)
-        (cons k
-              (cond ((stringp v)
-                     `((type . "string")
-                       (value . ,v)))
-                    ((integerp v)
-                     `((type . "integer")
-                       (value . ,(number-to-string v))))
-                    (t v))))
+        (cons k (t/transform-atom v)))
        (_ it)))
-   decoded)))
+   tree))
+
+(defun t/transform-atom (v)
+  (cond ((stringp v)
+         `((type . "string")
+           (value . ,v)))
+        ((integerp v)
+         `((type . "integer")
+           (value . ,(number-to-string v))))
+        ((vectorp v)
+         (vconcat
+          (mapcar #'t/transform-tree v)))
+        (t v)))
+
+(princ
+ (json-serialize
+  (t/transform-tree decoded)))
 
 (setq argv nil)
