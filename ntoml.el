@@ -31,6 +31,17 @@
 (require 'subr-x)
 (require 'cl-lib)
 
+(defmacro ntoml-preserve-point-on-fail (&rest body)
+  "Run BODY.
+
+If it returns nil, go back to the point position before running
+BODY."
+  (declare (indent 0))
+  `(let ((start (point)))
+     (or (progn ,@body)
+         (prog1 nil
+           (goto-char start)))))
+
 (defun ntoml-regexp-or (&rest regexps)
   "Return a regexp that matches any of REGEXPS."
   (mapconcat
@@ -138,11 +149,9 @@ Return nil if point hasn't moved."
   "Skip through whitespace, comment, and newlines."
   (while (or (ntoml-read-whitespace)
              (ntoml-read-newline)
-             (let ((begin (point)))
-               (or (and (ntoml-read-comment)
-                        (ntoml-read-newline))
-                   (prog1 nil
-                     (goto-char begin)))))))
+             (ntoml-preserve-point-on-fail
+               (and (ntoml-read-comment)
+                    (ntoml-read-newline))))))
 
 ;;;; KeyVal
 
@@ -418,14 +427,13 @@ Return nil if point hasn't moved."
 ;;;; Array
 
 (defun ntoml-read-array ()
-  (let ((start (point)) ret)
-    (or (when (ntoml-skip-forward-regexp (rx "["))
-          (setq ret (ntoml-read-array-values))
-          (ntoml-read-ws/comment/newline)
-          (ntoml-skip-forward-regexp (rx "]"))
-          ret)
-        (prog1 nil
-          (goto-char start)))))
+  (ntoml-preserve-point-on-fail
+    (let (ret)
+      (when (ntoml-skip-forward-regexp (rx "["))
+        (setq ret (ntoml-read-array-values))
+        (ntoml-read-ws/comment/newline)
+        (ntoml-skip-forward-regexp (rx "]"))
+        ret))))
 
 (defun ntoml-read-array-values ()
   (cl-loop
