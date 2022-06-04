@@ -13,9 +13,9 @@ jobs:
       matrix:
         emacs_version:
           - 28.1
-          - 27.2
-          - 26.3
-          - 25.3
+          # - 27.2
+          # - 26.3
+          # - 25.3
     steps:
       - uses: actions/checkout@v2
       - name: Set up Emacs
@@ -27,6 +27,6 @@ jobs:
       - name: Compile
         run: |
           make compile
-      - name: Test
+      - name: Test decoder
         run: |
-          make test
+          make test-decoder
