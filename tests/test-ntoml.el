@@ -50,6 +50,8 @@
     (expect (test-buf #'ntoml-read-float "300")
             :to-be nil))
   (it "parses float"
+    (expect (test-buf #'ntoml-read-float "3.5")
+            :to-equal 3.5)
     (expect (test-buf #'ntoml-read-float "300.3e+32")
             :to-equal 3.003e+34)
     (expect (test-buf #'ntoml-read-float "-300e+20")

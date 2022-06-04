@@ -333,8 +333,9 @@ Return nil if point hasn't moved."
     (cond
      ((and (ntoml-skip-forward-regexp ntoml--float-int-part)
            (or (ntoml-skip-forward-regexp ntoml--exp)
-               (progn (ntoml-skip-forward-regexp ntoml--frac)
-                      (ntoml-skip-forward-regexp ntoml--exp))))
+               (cl-some #'identity
+                        (list (ntoml-skip-forward-regexp ntoml--frac)
+                              (ntoml-skip-forward-regexp ntoml--exp)))))
       (string-to-number (buffer-substring-no-properties start (point))))
      ((ntoml-skipped-region
         (goto-char start)
