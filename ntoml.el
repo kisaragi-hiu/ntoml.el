@@ -69,6 +69,12 @@ BODY."
                 (plist-put data :value value)
               data))))
 
+(defun ntoml-eolp ()
+  "Are we at the end of line (ignoring whitespace and comment)?"
+  (ntoml-read-whitespace)
+  (ntoml-read-comment)
+  (eolp))
+
 (defun ntoml-regexp-or (&rest regexps)
   "Return a regexp that matches any of REGEXPS."
   (mapconcat
@@ -299,28 +305,46 @@ Return nil if point hasn't moved."
 (defconst ntoml--mll-content
   (concat ntoml--mll-char "\\|" ntoml--newline))
 
+(define-error 'ntoml-string-not-closed "String not closed properly")
+(define-error 'ntoml-string-trailing-garbage "Trailing garbage after string")
+
 (defun ntoml-read-basic-string ()
   (when (ntoml-skip-chars-forward "\"" (1+ (point)))
     (prog1 (ntoml-skipped-region-allow-null
             (ntoml-skip-forward-regexp ntoml--basic-char))
-      (skip-chars-forward "\"" (1+ (point))))))
+      (unless (ntoml-skip-chars-forward "\"" (1+ (point)))
+        (ntoml-signal 'ntoml-string-not-closed))
+      (unless (ntoml-eolp)
+        (ntoml-signal 'ntoml-string-trailing-garbage)))))
 
 (defun ntoml-read-literal-string ()
   (when (ntoml-skip-chars-forward "'" (1+ (point)))
     (prog1 (ntoml-skipped-region-allow-null
             (ntoml-skip-forward-regexp ntoml--literal-char))
-      (skip-chars-forward "'" (1+ (point))))))
+      (unless (ntoml-skip-chars-forward "'" (1+ (point)))
+        (ntoml-signal 'ntoml-string-not-closed))
+      (unless (ntoml-eolp)
+        (ntoml-signal 'ntoml-string-trailing-garbage)))))
 
 (defun ntoml-read-ml-literal-string ()
   (when (ntoml-skip-forward-regexp "'''" :once)
     (ntoml-read-newline :once)
-    (ntoml-read-ml-literal-body)
-    (ntoml-skip-forward-regexp "'''" :once)))
+    (prog1 (ntoml-skipped-region-allow-null
+            (ntoml-read-ml-literal-body))
+      (unless (ntoml-skip-forward-regexp "'''" :once)
+        (ntoml-signal 'ntoml-string-not-closed))
+      (unless (ntoml-eolp)
+        (ntoml-signal 'ntoml-string-trailing-garbage)))))
+
 (defun ntoml-read-ml-basic-string ()
   (when (ntoml-skip-forward-regexp "\"\"\"" :once)
     (ntoml-read-newline :once)
-    (ntoml-read-ml-basic-body)
-    (ntoml-skip-forward-regexp "\"\"\"" :once)))
+    (prog1 (ntoml-skipped-region-allow-null
+            (ntoml-read-ml-basic-body))
+      (unless (ntoml-skip-forward-regexp "\"\"\"" :once)
+        (ntoml-signal 'ntoml-string-not-closed))
+      (unless (ntoml-eolp)
+        (ntoml-signal 'ntoml-string-trailing-garbage)))))
 
 (defun ntoml-read-mll-quotes ()
   (skip-chars-forward "'" (+ 2 (point))))
@@ -508,7 +532,7 @@ Return nil if point hasn't moved."
              (ntoml-read-std-table))
     (ntoml-read-whitespace)
     (ntoml-read-comment)
-    (unless (eolp)
+    (unless (ntoml-eolp)
       (ntoml-signal 'ntoml-table-trailing-garbage))))
 
 (defun ntoml-read-std-table ()
