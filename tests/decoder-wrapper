@@ -11,6 +11,7 @@
 
 (add-to-list 'load-path (expand-file-name "../"))
 (require 'ntoml)
+(require 'json)
 
 ;; Inlined from dash.el
 (defun -cons-pair? (obj)
@@ -29,14 +30,18 @@ Alias: `-cons-pair-p'."
     (mapcar (lambda (x) (-tree-map fn x)) tree))
    (t (funcall fn tree))))
 
-(require 'json)
+(defvar stdin)
 
-(setq stdin (read-from-minibuffer ""))
+(let ((ret "")
+      (this nil))
+  (while (setq this (ignore-errors (read-from-minibuffer "")))
+    (setq ret (concat ret "\n" this)))
+  (setq stdin ret))
 
 (setq decoded (ntoml-decode stdin))
 
 (princ
- (json-encode
+ (json-serialize
   (-tree-map
    (lambda (it)
      (pcase it
