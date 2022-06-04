@@ -14,10 +14,12 @@ tests/toml-test:
 	chmod +x toml-test-v1.1.0-linux-amd64
 	mv toml-test-v1.1.0-linux-amd64 tests/toml-test
 
+GREP := | grep -a -i "fail"
+
 test-decoder: tests/toml-test
-	(cd tests && ./toml-test -- bash decoder-wrapper)
+	(cd tests && ./toml-test -- bash decoder-wrapper) $(GREP)
 
 test-encoder: tests/toml-test
-	(cd tests && ./toml-test -- bash encoder-wrapper)
+	(cd tests && ./toml-test -- bash encoder-wrapper) $(GREP)
 
 .PHONY: test compile
