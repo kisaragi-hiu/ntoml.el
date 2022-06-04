@@ -347,16 +347,18 @@ following the pair and don't touch `ntoml--current'."
         (ntoml-signal 'ntoml-string-not-closed)))))
 
 (defun ntoml-read-mll-quotes ()
-  (skip-chars-forward "'" (+ 2 (point))))
+  (ntoml-skip-forward-regexp (rx (repeat 1 2 "'")) :once))
 (defun ntoml-read-ml-literal-body ()
   (while (ntoml-skip-forward-regexp ntoml--mll-content))
-  (while (and
-          (ntoml-read-mll-quotes)
-          (ntoml-skip-forward-regexp ntoml--mll-content)))
-  (ntoml-read-mll-quotes))
+  (when (ntoml-preserve-point-on-fail
+          (and
+           (ntoml-read-mll-quotes)
+           (ntoml-skip-forward-regexp ntoml--mll-content)))
+    (ntoml-read-mll-quotes)))
 
 (defun ntoml-read-mlb-quotes ()
-  (skip-chars-forward "\"" (+ 2 (point))))
+  (ntoml-skip-forward-regexp (rx (repeat 1 2 "\"")) :once))
+
 (defun ntoml-read-mlb-escaped-nl ()
   (ntoml-skip-forward-regexp (regexp-quote ntoml--escape) :once)
   (ntoml-read-whitespace)
@@ -369,10 +371,11 @@ following the pair and don't touch `ntoml--current'."
       (ntoml-read-mlb-escaped-nl)))
 (defun ntoml-read-ml-basic-body ()
   (while (ntoml-read-mlb-content))
-  (while (and
-          (ntoml-read-mlb-quotes)
-          (ntoml-read-mlb-content)))
-  (ntoml-read-mlb-quotes))
+  (when (ntoml-preserve-point-on-fail
+          (and
+           (ntoml-read-mlb-quotes)
+           (ntoml-read-mlb-content)))
+    (ntoml-read-mlb-quotes)))
 
 ;;;; DONE Integer
 
