@@ -1,7 +1,8 @@
 #!/bin/sh
 ":"; exec emacs --quick --script "$0" "$@" # -*-mode: emacs-lisp; lexical-binding: t-*-
 
-(setq debug-on-error nil)
+(setq debug-on-error nil
+      load-prefer-newer t)
 
 (dolist (version (directory-files (expand-file-name "../.cask/") t "^[^.]"))
   ;; This will include the "archives" folder. But there are no .el

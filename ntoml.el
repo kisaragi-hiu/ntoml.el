@@ -483,6 +483,7 @@ Return nil if point hasn't moved."
 
 (define-error 'ntoml-table-key-invalid "Invalid table key")
 (define-error 'ntoml-table-trailing-garbage "Trailing garbage after table key")
+(define-error 'ntoml-table-redefine "Tried to use non-table key as table")
 
 (defun ntoml-array-table-flush ()
   (when ntoml--reading-array-table
@@ -531,8 +532,12 @@ When we're reading something invalid, signal an error."
               (unless (listp keys)
                 (setq keys (list keys)))
               (setq ntoml--current-location keys)
-              (unless (a-get-in ntoml--current keys)
-                (setq ntoml--current (a-assoc-in ntoml--current keys nil)))
+              (let ((current-value (a-get-in ntoml--current keys)))
+                (if current-value
+                    (cond ((vectorp current-value))
+                          ((listp current-value))
+                          (t (ntoml-signal 'ntoml-table-redefine)))
+                  (setq ntoml--current (a-assoc-in ntoml--current keys nil))))
               keys)
           (ntoml-signal 'ntoml-table-key-invalid))))))
 
