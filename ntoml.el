@@ -199,21 +199,27 @@ Return nil if point hasn't moved."
 (define-error 'ntoml-keyval-invalid "Invalid key-value pair")
 (define-error 'ntoml-keyval-trailing-garbage "Trailing garbage after key-value pair")
 
-(defun ntoml-read-keyval ()
+(defun ntoml-read-keyval (&optional inline)
+  "Read a key-value pair.
+
+If INLINE is non-nil, don't signal an error when there is text
+following the pair and don't touch `ntoml--current'."
   (let (k v)
     (when (and (setq k (ntoml-read-key))
                (ntoml-read-keyval-sep))
       (setq v (ntoml-read-val))
-      (unless (ntoml-eolp)
+      (unless (or inline (ntoml-eolp))
         (ntoml-signal 'ntoml-keyval-trailing-garbage))
       (unless v
         (ntoml-signal 'ntoml-keyval-invalid))
-      (if ntoml--reading-array-table
-          (push (cons k v) ntoml--array-table-pending)
-        (setq ntoml--current
-              (a-assoc-in ntoml--current
-                          (append ntoml--current-location (list k))
-                          v))))))
+      (if inline
+          (cons k v)
+        (if ntoml--reading-array-table
+            (push (cons k v) ntoml--array-table-pending)
+          (setq ntoml--current
+                (a-assoc-in ntoml--current
+                            (append ntoml--current-location (list k))
+                            v)))))))
 
 (defun ntoml-read-keyval-sep ()
   (ntoml-read-whitespace)
@@ -484,14 +490,17 @@ Return nil if point hasn't moved."
 
 ;;;; Array
 
+(define-error 'ntoml-array-not-closed "Array not closed properly")
+
 (defun ntoml-read-array ()
   (ntoml-preserve-point-on-fail
     (let (ret)
-      (when (ntoml-skip-forward-regexp (rx "["))
+      (when (ntoml-skip-forward-regexp (rx "[") :once)
         (setq ret (ntoml-read-array-values))
         (ntoml-read-ws/comment/newline)
-        (ntoml-skip-forward-regexp (rx "]"))
-        ret))))
+        (unless (ntoml-skip-forward-regexp (rx "]") :once)
+          (ntoml-signal 'ntoml-array-not-closed))
+        (vconcat ret)))))
 
 (defun ntoml-read-array-values ()
   (cl-loop
@@ -578,7 +587,7 @@ When we're reading something invalid, signal an error."
           ret)))))
 
 (defun ntoml-read-inline-table-keyvals ()
-  (cl-loop when (ntoml-read-keyval)
+  (cl-loop when (ntoml-read-keyval :inline)
            collect it
            while (prog2
                      (ntoml-read-whitespace)
