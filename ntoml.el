@@ -350,9 +350,13 @@ Return nil if point hasn't moved."
 ;;;; DONE Boolean
 
 (defun ntoml-read-boolean ()
-  (ntoml-skipped-region
-    (or (ntoml-skip-forward-regexp "true")
-        (ntoml-skip-forward-regexp "false"))))
+  "Read a boolean value."
+  (pcase (ntoml-skipped-region
+           (or (ntoml-skip-forward-regexp "true")
+               (ntoml-skip-forward-regexp "false")))
+    ("true" t)
+    ;; TODO: :false-object like json-parse-string
+    ("false" :false)))
 
 ;;;; Date-Time (RFC 3339)
 

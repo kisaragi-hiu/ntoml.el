@@ -11,6 +11,18 @@
     (goto-char (point-min))
     (funcall func)))
 
+(describe "ntoml-read-boolean"
+  (it "ignores strings"
+    (expect (test-buf #'ntoml-read-boolean "nottrue")
+            :to-be nil)
+    (expect (test-buf #'ntoml-read-boolean "\"true\"")
+            :to-be nil))
+  (it "ignores interers"
+    (expect (test-buf #'ntoml-read-boolean "true")
+            :to-be t)
+    (expect (test-buf #'ntoml-read-boolean "false")
+            :to-be :false)))
+
 (describe "ntoml-read-float"
   (it "ignores interers"
     (expect (test-buf #'ntoml-read-float "-300")
