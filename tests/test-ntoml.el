@@ -76,6 +76,10 @@
 (describe "ntoml-read-integer"
   ;; It doesn't need to ignore floats as we only run it after knowing
   ;; the value is not a float.
+  (it "barfs on leading zeros"
+    (expect (test-buf #'ntoml-read-integer "01")
+            :to-throw
+            'ntoml-integer-leading-zero))
   (it "parses an integer"
     (expect (test-buf #'ntoml-read-integer "300")
             :to-equal 300)

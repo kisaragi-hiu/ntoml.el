@@ -310,6 +310,12 @@ Return nil if point hasn't moved."
 (defconst ntoml--oct-int (concat "0o" (rx (in "0-7") (* (or (in "0-7") (seq "_" (in "0-7")))))))
 (defconst ntoml--bin-int (concat "0b" (rx (in "01") (* (or (in "01") (seq "_" (in "01")))))))
 
+(define-error 'ntoml-integer-leading-zero "Integer has leading zero")
+
+(defun ntoml-signal (sym data)
+  (signal sym (append (list :message (get sym 'error-message))
+                      data)))
+
 (defun ntoml-read-integer ()
   (let ((value (ntoml-skipped-region
                  (or
@@ -326,6 +332,10 @@ Return nil if point hasn't moved."
             ((string-prefix-p "0b" value)
              (string-to-number (substring value 2) 2))
             (t
+             (when (equal ?0 (elt value 0))
+               (ntoml-signal 'ntoml-integer-leading-zero
+                             (list :value value
+                                   :point (point))))
              (string-to-number value))))))
 
 ;;;; DONE Float
