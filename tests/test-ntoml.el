@@ -70,3 +70,32 @@
             :to-equal 1.0e+NaN)
     (expect (test-buf #'ntoml-read-float "-nan")
             :to-equal -1.0e+NaN)))
+
+(describe "ntoml-read-integer"
+  ;; It doesn't need to ignore floats as we only run it after knowing
+  ;; the value is not a float.
+  (it "parses an integer"
+    (expect (test-buf #'ntoml-read-integer "300")
+            :to-equal 300)
+    (expect (test-buf #'ntoml-read-integer "+300")
+            :to-equal 300)
+    (expect (test-buf #'ntoml-read-integer "-300")
+            :to-equal -300))
+  (it "parses hex"
+    (expect (test-buf #'ntoml-read-integer "0xAB")
+            :to-equal #xAB))
+  (it "parses octal"
+    (expect (test-buf #'ntoml-read-integer "0o7777")
+            :to-equal #o7777))
+  (it "parses binary"
+    (expect (test-buf #'ntoml-read-integer "0b10011001")
+            :to-equal #b10011001))
+  (it "parses separators"
+    (expect (test-buf #'ntoml-read-integer "300_000_000")
+            :to-equal 300000000)
+    (expect (test-buf #'ntoml-read-integer "0b11111111_00000000")
+            :to-equal #b1111111100000000)
+    (expect (test-buf #'ntoml-read-integer "0xABC_DE0")
+            :to-equal #xABCDE0)
+    (expect (test-buf #'ntoml-read-integer "0o567_654")
+            :to-equal #o567654)))

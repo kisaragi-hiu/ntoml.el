@@ -302,10 +302,10 @@ Return nil if point hasn't moved."
 (defun ntoml-read-integer ()
   (let ((value (ntoml-skipped-region
                  (or
-                  (ntoml-skip-forward-regexp ntoml--dec-int)
                   (ntoml-skip-forward-regexp ntoml--hex-int)
                   (ntoml-skip-forward-regexp ntoml--oct-int)
-                  (ntoml-skip-forward-regexp ntoml--bin-int)))))
+                  (ntoml-skip-forward-regexp ntoml--bin-int)
+                  (ntoml-skip-forward-regexp ntoml--dec-int)))))
     (when value
       (setq value (replace-regexp-in-string "_" "" value))
       (cond ((string-prefix-p "0x" value)
