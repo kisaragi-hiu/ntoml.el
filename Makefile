@@ -4,9 +4,8 @@
 compile: .cask
 	cask build
 
-# test: .cask
-# 	if [ "$$CI" != true ]; then make compile; fi # Locally, always rebuild
-# 	cask exec buttercup tests/
+test: .cask
+	cask exec buttercup tests/
 
 tests/toml-test:
 	wget "https://github.com/BurntSushi/toml-test/releases/download/v1.1.0/toml-test-v1.1.0-linux-amd64.gz"

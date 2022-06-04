@@ -315,29 +315,43 @@ Return nil if point hasn't moved."
             (t
              (string-to-number value))))))
 
-;;;; Float
+;;;; DONE Float
 
-(defconst ntoml--special-float (rx (in "+-") (or "inf" "nan")))
+(defconst ntoml--special-float (rx (group (opt (in "+-")))
+                                   (group (or "inf" "nan"))))
 (defconst ntoml--zero-prefixable-int (rx digit (* (or digit (seq "_" digit)))))
 (defconst ntoml--frac (concat "\\." ntoml--zero-prefixable-int))
 (defconst ntoml--float-exp-part (concat "[+-]" ntoml--zero-prefixable-int))
+(defconst ntoml--float-int-part ntoml--dec-int)
 (defconst ntoml--exp (concat "e" ntoml--float-exp-part))
 
 (defun ntoml-read-float ()
-  ;; Just allow integer tests to pass for now
-  (save-excursion
-    (or (and (ntoml-skip-forward-regexp ntoml--dec-int)
-             (or (ntoml-skip-forward-regexp ntoml--exp)
-                 (and (ntoml-skip-forward-regexp ntoml--frac)
+  "Read a float."
+  (let ((start (point)))
+    (cond
+     ((and (ntoml-skip-forward-regexp ntoml--float-int-part)
+           (or (ntoml-skip-forward-regexp ntoml--exp)
+               (progn (ntoml-skip-forward-regexp ntoml--frac)
                       (ntoml-skip-forward-regexp ntoml--exp))))
-        (ntoml-skip-forward-regexp ntoml--special-float))))
+      (string-to-number (buffer-substring-no-properties start (point))))
+     ((ntoml-skipped-region
+        (goto-char start)
+        (ntoml-skip-forward-regexp ntoml--special-float))
+      (pcase (cons (match-string 1) (match-string 2))
+        (`(,(or "" "+") . "inf") 1.0e+INF)
+        (`(,(or "" "+") . "nan") 1.0e+NaN)
+        (`("-" . "inf") -1.0e+INF)
+        (`("-" . "nan") -1.0e+NaN)))
+     (t
+      (prog1 nil
+        (goto-char start))))))
 
 ;;;; DONE Boolean
 
 (defun ntoml-read-boolean ()
   (ntoml-skipped-region
-   (or (ntoml-skip-forward-regexp "true")
-       (ntoml-skip-forward-regexp "false"))))
+    (or (ntoml-skip-forward-regexp "true")
+        (ntoml-skip-forward-regexp "false"))))
 
 ;;;; Date-Time (RFC 3339)
 
