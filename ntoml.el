@@ -73,6 +73,7 @@ This will return an empty string if point hasn't moved."
   "Run BODY, and return the text between the old and new point.
 
 Return nil if point hasn't moved."
+  (declare (indent 0))
   `(let (start end)
      (setq start (point))
      ,@body
@@ -174,7 +175,7 @@ Return nil if point hasn't moved."
       (ntoml-read-literal-string)))
 (defun ntoml-read-unquoted-key ()
   (ntoml-skipped-region
-   (ntoml-skip-forward-regexp (rx (+ (in "A-Za-z0-9_-"))))))
+    (ntoml-skip-forward-regexp (rx (+ (in "A-Za-z0-9_-"))))))
 (defun ntoml-read-dot-sep ()
   (ntoml-read-whitespace)
   (prog1 (ntoml-skip-chars-forward "." (1+ (point)))
@@ -299,11 +300,11 @@ Return nil if point hasn't moved."
 
 (defun ntoml-read-integer ()
   (let ((value (ntoml-skipped-region
-                (or
-                 (ntoml-skip-forward-regexp ntoml--dec-int)
-                 (ntoml-skip-forward-regexp ntoml--hex-int)
-                 (ntoml-skip-forward-regexp ntoml--oct-int)
-                 (ntoml-skip-forward-regexp ntoml--bin-int)))))
+                 (or
+                  (ntoml-skip-forward-regexp ntoml--dec-int)
+                  (ntoml-skip-forward-regexp ntoml--hex-int)
+                  (ntoml-skip-forward-regexp ntoml--oct-int)
+                  (ntoml-skip-forward-regexp ntoml--bin-int)))))
     (when value
       (setq value (replace-regexp-in-string "_" "" value))
       (cond ((string-prefix-p "0x" value)
