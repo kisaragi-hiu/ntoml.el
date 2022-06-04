@@ -288,9 +288,10 @@ Return nil if point hasn't moved."
 ;;;; DONE Integer
 
 (defconst ntoml--unsigned-dec-int
-  (rx (or digit
-          (seq (in "1-9")
-               (1+ (or digit (seq "_" digit)))))))
+  (rx (or (seq (in "1-9")
+               (1+ (or digit (seq "_" digit))))
+          ;; Try this second
+          digit)))
 
 (defconst ntoml--dec-int (rx (opt (any "+-"))
                              (regexp ntoml--unsigned-dec-int)))
