@@ -213,7 +213,9 @@ following the pair and don't touch `ntoml--current'."
       (unless v
         (ntoml-signal 'ntoml-keyval-invalid))
       (if inline
-          (cons k v)
+          (cons k
+                (cond ((eq v :empty) nil)
+                      (t v)))
         (if ntoml--reading-array-table
             (push (cons k v) ntoml--array-table-pending)
           (setq ntoml--current
@@ -587,7 +589,19 @@ When we're reading something invalid, signal an error."
         (setq ret (ntoml-read-inline-table-keyvals))
         (ntoml-read-whitespace)
         (when (ntoml-skip-forward-regexp (rx "}"))
-          ret)))))
+          ;; We need a way to distinguish between an empty alist and
+          ;; this function not finding anything.
+          ;;
+          ;; In the final output we can use nil to represent an empty
+          ;; alist because false is represented by `:false', but here
+          ;; we have to use a special value.
+          ;;
+          ;; This is then replaced with a nil again in
+          ;; `ntoml-read-keyval'.
+          ;;
+          ;; A keyword is special enough as we do not decode anything
+          ;; into keywords (other than one other value, `:false').
+          (or ret :empty))))))
 
 (defun ntoml-read-inline-table-keyvals ()
   (cl-loop when (ntoml-read-keyval :inline)
