@@ -2,7 +2,7 @@
 
 ;; Author: Kisaragi Hiu
 ;; Version: 0.1
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((emacs "25.1") (a "1.0.0"))
 ;; Homepage: homepage
 ;; Keywords: keywords
 
@@ -30,6 +30,16 @@
 
 (require 'subr-x)
 (require 'cl-lib)
+
+(require 'a)
+
+(defvar ntoml--current nil
+  "Temporary storage.")
+
+(defvar ntoml--current-location nil
+  "Which table we should insert KV pairs to.
+
+This is a list of keys.")
 
 (defmacro ntoml-preserve-point-on-fail (&rest body)
   "Run BODY.
@@ -120,20 +130,22 @@ Return nil if point hasn't moved."
                                  (in (#x80 . #x10FFFF)))))
 
 (defun ntoml-read-toml ()
-  (let (ret v)
-    (while (setq v (ntoml-read-expression))
-      (push v ret)
-      (forward-line))
-    (nreverse ret)))
+  (setq ntoml--current nil
+        ntoml--current-location nil)
+  (ntoml-read-expression)
+  (while (and (ntoml-read-newline)
+              (ntoml-read-expression)))
+  (prog1 ntoml--current
+    (setq ntoml--current nil
+          ntoml--current-location nil)))
 
 (defun ntoml-read-expression ()
-  (let (ret)
+  (ntoml-skipped-region
     (ntoml-read-whitespace)
-    (and (setq ret (or (ntoml-read-keyval)))
-         ;;            (ntoml-read-table)
+    (and (or (ntoml-read-keyval)
+             (ntoml-read-table))
          (ntoml-read-whitespace))
-    (ntoml-read-comment)
-    ret))
+    (ntoml-read-comment)))
 
 (defun ntoml-read-whitespace ()
   (ntoml-skip-forward-regexp ntoml--wschar))
@@ -160,7 +172,11 @@ Return nil if point hasn't moved."
     (when (and (setq k (ntoml-read-key))
                (ntoml-read-keyval-sep)
                (setq v (ntoml-read-val)))
-      (cons k v))))
+      (setq ntoml--current
+            (a-assoc-in ntoml--current
+                        (append ntoml--current-location (list k))
+                        v)))))
+
 (defun ntoml-read-keyval-sep ()
   (ntoml-read-whitespace)
   (prog1 (ntoml-skip-chars-forward "=" (1+ (point)))
@@ -445,7 +461,51 @@ Return nil if point hasn't moved."
 
 ;;;; Table
 
-;; Standard Table
+(defun ntoml-read-table ()
+  (or (ntoml-read-std-table)
+      (ntoml-read-array-table)))
+
+(defun ntoml-read-std-table ()
+  (ntoml-preserve-point-on-fail
+    (let (keys)
+      (when (ntoml-skip-forward-regexp (rx "[") :once)
+        (ntoml-read-whitespace)
+        (setq keys (ntoml-read-key))
+        (ntoml-read-whitespace)
+        (when (ntoml-skip-forward-regexp (rx "]") :once)
+          (when keys
+            (unless (listp keys)
+              (setq keys (list keys)))
+            (setq ntoml--current-location keys)
+            (unless (a-get-in ntoml--current keys)
+              (setq ntoml--current (a-assoc-in ntoml--current keys nil))))
+          t)))))
+
+(defun ntoml-read-inline-table ()
+  (ntoml-preserve-point-on-fail
+    (let (ret)
+      (when (ntoml-skip-forward-regexp (rx "{"))
+        (ntoml-read-whitespace)
+        (setq ret (ntoml-read-inline-table-keyvals))
+        (ntoml-read-whitespace)
+        (when (ntoml-skip-forward-regexp (rx "}"))
+          (list 'inline-table ret))))))
+
+(defun ntoml-read-inline-table-keyvals ()
+  (cl-loop when (ntoml-read-keyval)
+           collect it
+           while (prog2
+                     (ntoml-read-whitespace)
+                     (ntoml-skip-forward-regexp (rx ","))
+                   (ntoml-read-whitespace))))
+
+(defun ntoml-read-array-table ()
+  (when (ntoml-skip-forward-regexp (rx "[["))
+    (ntoml-read-whitespace)
+    (ntoml-read-key)
+    (ntoml-read-whitespace)
+    (ntoml-skip-forward-regexp (rx "]]"))))
+
 ;; Inline Table
 ;; Array Table
 
