@@ -57,6 +57,9 @@ Alias: `-cons-pair-p'."
         ((integerp v)
          `((type . "integer")
            (value . ,(number-to-string v))))
+        ((floatp v)
+         `((type . "float")
+           (value . ,(number-to-string v))))
         ((vectorp v)
          (vconcat
           (mapcar #'t/transform-tree v)))
@@ -74,8 +77,11 @@ Alias: `-cons-pair-p'."
            (value . ,(ntoml-time-local-timestamp v))))
         (t v)))
 
-(princ
- (json-serialize
-  (t/transform-tree decoded)))
+(with-temp-buffer
+  (insert
+   (json-serialize
+    (t/transform-tree decoded)))
+  (json-pretty-print-buffer)
+  (princ (buffer-string)))
 
 (setq argv nil)
