@@ -42,6 +42,16 @@
             :to-be :false)))
 
 (describe "ntoml-read-float"
+  (it "barfs on leading garbage"
+    (expect (test-buf #'ntoml-read-float "+01.2")
+            :to-throw
+            'ntoml-float-leading-garbage)
+    (expect (test-buf #'ntoml-read-float "-01.2")
+            :to-throw
+            'ntoml-float-leading-garbage)
+    (expect (test-buf #'ntoml-read-float "01.2")
+            :to-throw
+            'ntoml-float-leading-garbage))
   (it "ignores interers"
     (expect (test-buf #'ntoml-read-float "-300")
             :to-be nil)
@@ -77,9 +87,15 @@
   ;; It doesn't need to ignore floats as we only run it after knowing
   ;; the value is not a float.
   (it "barfs on leading zeros"
+    (expect (test-buf #'ntoml-read-integer "+01")
+            :to-throw
+            'ntoml-integer-leading-garbage)
+    (expect (test-buf #'ntoml-read-integer "-01")
+            :to-throw
+            'ntoml-integer-leading-garbage)
     (expect (test-buf #'ntoml-read-integer "01")
             :to-throw
-            'ntoml-integer-leading-zero))
+            'ntoml-integer-leading-garbage))
   (it "parses an integer"
     (expect (test-buf #'ntoml-read-integer "300")
             :to-equal 300)
