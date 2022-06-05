@@ -428,6 +428,8 @@ following the pair and don't touch `ntoml--current'."
 
 ;;;; DONE Float
 
+(define-error 'ntoml-float-leading-garbage "Float has leading garbage")
+
 (defconst ntoml--special-float (rx (group (opt (in "+-")))
                                    (group (or "inf" "nan"))))
 (defconst ntoml--zero-prefixable-int (rx digit (* (or digit (seq "_" digit)))))
@@ -445,9 +447,13 @@ following the pair and don't touch `ntoml--current'."
                (cl-some #'identity
                         (list (ntoml-skip-forward-regexp ntoml--frac :once)
                               (ntoml-skip-forward-regexp ntoml--exp :once)))))
-      (thread-last (buffer-substring-no-properties start (point))
-                   (replace-regexp-in-string "_" "")
-                   string-to-number))
+      (let ((val (buffer-substring-no-properties start (point))))
+        (when (or (equal ?0 (elt val 0))
+                  (string-prefix-p "+0" val)
+                  (string-prefix-p "-0" val))
+          (ntoml-signal 'ntoml-float-leading-garbage))
+        (string-to-number
+         (replace-regexp-in-string "_" "" val))))
      ((ntoml-skipped-region
         (goto-char start)
         (ntoml-skip-forward-regexp ntoml--special-float))
