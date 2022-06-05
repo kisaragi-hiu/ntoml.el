@@ -441,10 +441,10 @@ following the pair and don't touch `ntoml--current'."
   (let ((start (point)))
     (cond
      ((and (ntoml-skip-forward-regexp ntoml--float-int-part)
-           (or (ntoml-skip-forward-regexp ntoml--exp)
+           (or (ntoml-skip-forward-regexp ntoml--exp :once)
                (cl-some #'identity
-                        (list (ntoml-skip-forward-regexp ntoml--frac)
-                              (ntoml-skip-forward-regexp ntoml--exp)))))
+                        (list (ntoml-skip-forward-regexp ntoml--frac :once)
+                              (ntoml-skip-forward-regexp ntoml--exp :once)))))
       (thread-last (buffer-substring-no-properties start (point))
                    (replace-regexp-in-string "_" "")
                    string-to-number))
