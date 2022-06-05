@@ -445,7 +445,9 @@ following the pair and don't touch `ntoml--current'."
                (cl-some #'identity
                         (list (ntoml-skip-forward-regexp ntoml--frac)
                               (ntoml-skip-forward-regexp ntoml--exp)))))
-      (string-to-number (buffer-substring-no-properties start (point))))
+      (thread-last (buffer-substring-no-properties start (point))
+                   (replace-regexp-in-string "_" "")
+                   string-to-number))
      ((ntoml-skipped-region
         (goto-char start)
         (ntoml-skip-forward-regexp ntoml--special-float))
