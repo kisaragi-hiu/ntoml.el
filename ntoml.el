@@ -542,24 +542,16 @@ following the pair and don't touch `ntoml--current'."
       (setq ntoml--current-month nil
             ntoml--current-year nil)
       ret)))
+
 (defun ntoml-read-time-hour ()
   (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
-    (let ((ret (string-to-number (match-string 0))))
-      (unless (<= 0 ret 23)
-        (ntoml-signal 'ntoml-time-hour-invalid ret))
-      ret)))
+    (string-to-number (match-string 0))))
 (defun ntoml-read-time-minute ()
   (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
-    (let ((ret (string-to-number (match-string 0))))
-      (unless (<= 0 ret 59)
-        (ntoml-signal 'ntoml-time-minute-invalid ret))
-      ret)))
+    (string-to-number (match-string 0))))
 (defun ntoml-read-time-second ()
   (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
-    (let ((ret (string-to-number (match-string 0))))
-      (unless (<= 0 ret 60) ; leap second
-        (ntoml-signal 'ntoml-time-second-invalid ret))
-      ret)))
+    (string-to-number (match-string 0))))
 (defun ntoml-read-time-secfrac ()
   (ntoml-skipped-region
     (ntoml-skip-forward-regexp (rx "." (+ digit)) :once)))
@@ -583,6 +575,12 @@ following the pair and don't touch `ntoml--current'."
                  (ntoml-skip-chars-forward ":" (1+ (point)))
                  (setq s (ntoml-read-time-second)))
         (setq frac (ntoml-read-time-secfrac))
+        (unless (<= 0 h 23)
+          (ntoml-signal 'ntoml-time-hour-invalid h))
+        (unless (<= 0 m 59)
+          (ntoml-signal 'ntoml-time-minute-invalid m))
+        (unless (<= 0 s 60) ; leap second
+          (ntoml-signal 'ntoml-time-second-invalid s))
         (if frac
             (list h m s frac)
           (list h m s frac))))))
