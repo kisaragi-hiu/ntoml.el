@@ -432,7 +432,7 @@ following the pair and don't touch `ntoml--current'."
                                    (group (or "inf" "nan"))))
 (defconst ntoml--zero-prefixable-int (rx digit (* (or digit (seq "_" digit)))))
 (defconst ntoml--frac (concat "\\." ntoml--zero-prefixable-int))
-(defconst ntoml--float-exp-part (concat "[+-]" ntoml--zero-prefixable-int))
+(defconst ntoml--float-exp-part (concat "[+-]?" ntoml--zero-prefixable-int))
 (defconst ntoml--float-int-part ntoml--dec-int)
 (defconst ntoml--exp (concat "e" ntoml--float-exp-part))
 
