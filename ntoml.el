@@ -650,7 +650,7 @@ following the pair and don't touch `ntoml--current'."
 (define-error 'ntoml-table-key-invalid "Invalid table key")
 (define-error 'ntoml-table-trailing-garbage "Trailing garbage after table key")
 (define-error 'ntoml-table-redefine "Tried to use non-table key as table")
-(define-error 'ntoml-table-duplicate "Duplicate key")
+(define-error 'ntoml-table-duplicate-key "Duplicate key")
 
 (defun ntoml-array-table-flush ()
   (when ntoml--reading-array-table
@@ -699,7 +699,7 @@ When we're reading something invalid, signal an error."
               (unless (listp keys)
                 (setq keys (list keys)))
               (when (member keys ntoml--seen-keys)
-                (ntoml-signal 'ntoml-table-duplicate))
+                (ntoml-signal 'ntoml-table-duplicate-key))
               (push keys ntoml--seen-keys)
               (setq ntoml--current-location keys)
               (let ((current-value (a-get-in ntoml--current keys)))
