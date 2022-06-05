@@ -114,3 +114,16 @@
             :to-equal ["Hello" 3.5])
     (expect (test-buf #'ntoml-read-array "[]")
             :to-equal [])))
+
+(describe "ntoml-read-key"
+  (it "parses keys"
+    (expect (test-buf #'ntoml-read-key "raw")
+            :to-equal 'raw)
+    (expect (test-buf #'ntoml-read-key "raw.dot.x")
+            :to-equal '(raw dot x))
+    (expect (test-buf #'ntoml-read-key "\"double-quoted\"")
+            :to-equal 'double-quoted)
+    (expect (test-buf #'ntoml-read-key "'single-quoted'")
+            :to-equal 'single-quoted)
+    (expect (test-buf #'ntoml-read-key "\"double\".'single'")
+            :to-equal '(double single))))
