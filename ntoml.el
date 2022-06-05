@@ -269,11 +269,11 @@ following the pair and don't touch `ntoml--current'."
 
 (defun ntoml-read-val ()
   (or
-   (ntoml-read-date-time)
    (ntoml-read-string)
    (ntoml-read-boolean)
    (ntoml-read-array)
    (ntoml-read-inline-table)
+   (ntoml-read-date-time)
    (ntoml-read-float)
    (ntoml-read-integer)))
 
@@ -575,24 +575,26 @@ following the pair and don't touch `ntoml--current'."
         (ntoml-read-time-numoffset))))
 
 (defun ntoml-read-partial-time ()
-  (let (h m s frac)
-    (when (and (setq h (ntoml-read-time-hour))
-               (ntoml-skip-chars-forward ":" (1+ (point)))
-               (setq m (ntoml-read-time-minute))
-               (ntoml-skip-chars-forward ":" (1+ (point)))
-               (setq s (ntoml-read-time-second)))
-      (setq frac (ntoml-read-time-secfrac)))
-    (if frac
-        (list h m s frac)
-      (list h m s frac))))
+  (ntoml-preserve-point-on-fail
+    (let (h m s frac)
+      (when (and (setq h (ntoml-read-time-hour))
+                 (ntoml-skip-chars-forward ":" (1+ (point)))
+                 (setq m (ntoml-read-time-minute))
+                 (ntoml-skip-chars-forward ":" (1+ (point)))
+                 (setq s (ntoml-read-time-second)))
+        (setq frac (ntoml-read-time-secfrac))
+        (if frac
+            (list h m s frac)
+          (list h m s frac))))))
 (defun ntoml-read-full-date ()
-  (let (y m d)
-    (when (and (setq y (ntoml-read-date-fullyear))
-               (ntoml-skip-chars-forward "-" (1+ (point)))
-               (setq m (ntoml-read-date-month))
-               (ntoml-skip-chars-forward "-" (1+ (point)))
-               (setq d (ntoml-read-date-mday)))
-      (list y m d))))
+  (ntoml-preserve-point-on-fail
+    (let (y m d)
+      (when (and (setq y (ntoml-read-date-fullyear))
+                 (ntoml-skip-chars-forward "-" (1+ (point)))
+                 (setq m (ntoml-read-date-month))
+                 (ntoml-skip-chars-forward "-" (1+ (point)))
+                 (setq d (ntoml-read-date-mday)))
+        (list y m d)))))
 (defun ntoml-read-full-time ()
   (ntoml-preserve-point-on-fail
     (and (ntoml-read-partial-time)
