@@ -127,7 +127,7 @@ Return nil if point hasn't moved."
      (unless (equal start end)
        (buffer-substring-no-properties start end))))
 
-(defun ntoml-encode (value)
+(cl-defgeneric ntoml-encode (value)
   "Encode VALUE as TOML."
   (json-serialize value))
 
@@ -268,13 +268,14 @@ following the pair and don't touch `ntoml--current'."
 ;;;; Val
 
 (defun ntoml-read-val ()
-  (or (ntoml-read-string)
-      (ntoml-read-boolean)
-      (ntoml-read-array)
-      (ntoml-read-inline-table)
-      ;; (ntoml-read-date-time)
-      (ntoml-read-float)
-      (ntoml-read-integer)))
+  (or
+   (ntoml-read-date-time)
+   (ntoml-read-string)
+   (ntoml-read-boolean)
+   (ntoml-read-array)
+   (ntoml-read-inline-table)
+   (ntoml-read-float)
+   (ntoml-read-integer)))
 
 ;;;; String
 
@@ -463,11 +464,46 @@ following the pair and don't touch `ntoml--current'."
 
 ;;;; TODO Date-Time (RFC 3339)
 
+(cl-defstruct (ntoml-date-time
+               (:copier nil)
+               (:constructor ntoml-date-time))
+  timestamp)
+
+(cl-defstruct (ntoml-date-time-local
+               (:copier nil)
+               (:constructor ntoml-date-time-local))
+  timestamp)
+
+(cl-defstruct (ntoml-date-local
+               (:copier nil)
+               (:constructor ntoml-date-local))
+  timestamp)
+
+(cl-defstruct (ntoml-time-local
+               (:copier nil)
+               (:constructor ntoml-time-local))
+  timestamp)
+
+(cl-defmethod ntoml-encode ((datetime ntoml-date-time))
+  (ntoml-date-time-timestamp datetime))
+
 (defun ntoml-read-date-time ()
-  (or (ntoml-read-offset-date-time)
-      (ntoml-read-local-date-time)
-      (ntoml-read-local-date)
-      (ntoml-read-local-time)))
+  (let* ((type nil)
+         (val (ntoml-skipped-region
+                (or (and (ntoml-read-offset-date-time)
+                         (setq type 'date-time))
+                    (and (ntoml-read-local-date-time)
+                         (setq type 'date-time-local))
+                    (and (ntoml-read-local-date)
+                         (setq type 'date-local))
+                    (and (ntoml-read-local-time)
+                         (setq type 'time-local))))))
+    (when type
+      (pcase type
+        ('date-time (ntoml-date-time :timestamp val))
+        ('date-time-local (ntoml-date-time-local :timestamp val))
+        ('date-local (ntoml-date-local :timestamp val))
+        ('time-local (ntoml-time-local :timestamp val))))))
 
 (define-error 'ntoml-date-time-invalid "Invalid date time")
 (define-error 'ntoml-date-month-invalid "Invalid month")
@@ -479,7 +515,7 @@ following the pair and don't touch `ntoml--current'."
 (defconst ntoml--time-delim (rx (or "T" "t" " ")))
 
 (defun ntoml-read-date-fullyear ()
-  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+  (when (ntoml-skip-forward-regexp (rx (= 4 digit)) :once)
     (let ((ret (string-to-number (match-string 0))))
       (setq ntoml--current-year ret)
       ret)))
@@ -562,15 +598,15 @@ following the pair and don't touch `ntoml--current'."
     (and (ntoml-read-partial-time)
          (ntoml-read-time-offset))))
 (defun ntoml-read-offset-date-time ()
-  (ntoml-skipped-region
-    (ntoml-read-full-date)
-    (ntoml-skip-forward-regexp ntoml--time-delim)
-    (ntoml-read-full-time)))
+  (ntoml-preserve-point-on-fail
+    (and (ntoml-read-full-date)
+         (ntoml-skip-forward-regexp ntoml--time-delim :once)
+         (ntoml-read-full-time))))
 (defun ntoml-read-local-date-time ()
-  (ntoml-skipped-region
-    (ntoml-read-full-date)
-    (ntoml-skip-forward-regexp ntoml--time-delim)
-    (ntoml-read-partial-time)))
+  (ntoml-preserve-point-on-fail
+    (and (ntoml-read-full-date)
+         (ntoml-skip-forward-regexp ntoml--time-delim :once)
+         (ntoml-read-partial-time))))
 (defun ntoml-read-local-date ()
   (ntoml-skipped-region
     (ntoml-read-full-date)))

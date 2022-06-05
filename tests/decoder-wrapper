@@ -60,6 +60,18 @@ Alias: `-cons-pair-p'."
         ((vectorp v)
          (vconcat
           (mapcar #'t/transform-tree v)))
+        ((cl-typep v 'ntoml-date-time)
+         `((type . "datetime")
+           (value . ,(ntoml-date-time-timestamp v))))
+        ((cl-typep v 'ntoml-date-time-local)
+         `((type . "datetime-local")
+           (value . ,(ntoml-date-time-local-timestamp v))))
+        ((cl-typep v 'ntoml-date-local)
+         `((type . "date-local")
+           (value . ,(ntoml-date-local-timestamp v))))
+        ((cl-typep v 'ntoml-time-local)
+         `((type . "time-local")
+           (value . ,(ntoml-time-local-timestamp v))))
         (t v)))
 
 (princ
