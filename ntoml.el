@@ -403,28 +403,30 @@ following the pair and don't touch `ntoml--current'."
 (defconst ntoml--oct-int (concat "0o" (rx (in "0-7") (* (or (in "0-7") (seq "_" (in "0-7")))))))
 (defconst ntoml--bin-int (concat "0b" (rx (in "01") (* (or (in "01") (seq "_" (in "01")))))))
 
-(define-error 'ntoml-integer-leading-zero "Integer has leading zero")
+(define-error 'ntoml-integer-leading-garbage "Integer has leading garbage")
 
 (defun ntoml-read-integer ()
-  (let ((value (ntoml-skipped-region
+  (let ((val (ntoml-skipped-region
                  (or
                   (ntoml-skip-forward-regexp ntoml--hex-int)
                   (ntoml-skip-forward-regexp ntoml--oct-int)
                   (ntoml-skip-forward-regexp ntoml--bin-int)
                   (ntoml-skip-forward-regexp ntoml--dec-int)))))
-    (when value
-      (setq value (replace-regexp-in-string "_" "" value))
-      (cond ((string-prefix-p "0x" value)
-             (string-to-number (substring value 2) 16))
-            ((string-prefix-p "0o" value)
-             (string-to-number (substring value 2) 8))
-            ((string-prefix-p "0b" value)
-             (string-to-number (substring value 2) 2))
+    (when val
+      (setq val (replace-regexp-in-string "_" "" val))
+      (cond ((string-prefix-p "0x" val)
+             (string-to-number (substring val 2) 16))
+            ((string-prefix-p "0o" val)
+             (string-to-number (substring val 2) 8))
+            ((string-prefix-p "0b" val)
+             (string-to-number (substring val 2) 2))
             (t
-             (when (equal ?0 (elt value 0))
-               (ntoml-signal 'ntoml-integer-leading-zero
-                             value))
-             (string-to-number value))))))
+             (when (or (equal ?0 (elt val 0))
+                       (string-prefix-p "+0" val)
+                       (string-prefix-p "-0" val))
+               (ntoml-signal 'ntoml-integer-leading-garbage
+                             val))
+             (string-to-number val))))))
 
 ;;;; DONE Float
 
