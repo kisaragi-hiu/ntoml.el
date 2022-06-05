@@ -131,6 +131,13 @@ Return nil if point hasn't moved."
   "Encode VALUE as TOML."
   (json-serialize value))
 
+(cl-defmethod ntoml-encode ((f float))
+  (cl-case f
+    ((1.0e+NaN -1.0e+NaN) "nan")
+    (1.0e+INF "inf")
+    (-1.0e+INF "-inf")
+    (t (format "%s" f))))
+
 (defun ntoml-decode-buffer ()
   "Decode current buffer contents as TOML and return the Elisp value."
   (save-excursion
