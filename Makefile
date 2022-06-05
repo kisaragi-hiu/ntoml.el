@@ -17,9 +17,9 @@ tests/toml-test:
 GREP := | grep -a -i "fail"
 
 test-decoder: tests/toml-test
-	(cd tests && ./toml-test -- bash decoder-wrapper) $(GREP)
+	bash tests/test-decoder $(GREP)
 
 test-encoder: tests/toml-test
-	(cd tests && ./toml-test -- bash encoder-wrapper) $(GREP)
+	bash tests/test-encoder $(GREP)
 
 .PHONY: test compile

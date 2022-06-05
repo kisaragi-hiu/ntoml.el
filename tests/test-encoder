@@ -1,0 +1,12 @@
+#!/bin/bash
+cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" || exit 255
+
+tests="$1"
+
+if [[ -z $tests ]]; then
+	opt=("")
+else
+	opt=("-run" $tests)
+fi
+
+./toml-test ${opt[@]} -encoder -- bash encoder-wrapper
