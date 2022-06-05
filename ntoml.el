@@ -733,13 +733,22 @@ When we're reading something invalid, signal an error."
           ;; into keywords (other than one other value, `:false').
           (or ret :empty))))))
 
+(define-error 'ntoml-inline-table-duplicate-key "Duplicate key")
+
 (defun ntoml-read-inline-table-keyvals ()
-  (cl-loop when (ntoml-read-keyval :inline)
-           collect it
-           while (prog2
-                     (ntoml-read-whitespace)
-                     (ntoml-skip-forward-regexp (rx ","))
-                   (ntoml-read-whitespace))))
+  (let* (ret seen-keys)
+    (while (progn
+             (let ((it (ntoml-read-keyval :inline)))
+               (when it
+                 (when (memq (car it) seen-keys)
+                   (ntoml-signal 'ntoml-inline-table-duplicate-key))
+                 (push it ret)
+                 (push (car it) seen-keys)))
+             (prog2
+                 (ntoml-read-whitespace)
+                 (ntoml-skip-forward-regexp (rx ","))
+               (ntoml-read-whitespace))))
+    (nreverse ret)))
 
 (defun ntoml-read-array-table ()
   "Read an array table.
