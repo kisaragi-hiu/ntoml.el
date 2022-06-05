@@ -33,20 +33,20 @@
 
 (require 'a)
 
+(defvar ntoml--current-year nil
+  "When reading a datetime, the year to calculate bounds with.")
+(defvar ntoml--current-month nil
+  "When reading a datetime, the month to calculate bounds with.")
 (defvar ntoml--current nil
   "Temporary storage.")
-
 (defvar ntoml--current-location nil
   "Which table we should insert KV pairs to.
 
 This is a list of keys.")
-
 (defvar ntoml--reading-array-table nil
   "Whether we're inserting into an array table.")
-
 (defvar ntoml--array-table-pending nil
   "Value to be inserted into the current table.")
-
 (defvar ntoml--seen-keys nil
   "List of keys that we've seen.")
 
@@ -157,7 +157,9 @@ Return nil if point hasn't moved."
         ntoml--current-location nil
         ntoml--reading-array-table nil
         ntoml--array-table-pending nil
-        ntoml--seen-keys nil))
+        ntoml--seen-keys nil
+        ntoml--current-year nil
+        ntoml--current-month nil))
 
 (defun ntoml-read-toml ()
   (ntoml-reset-state)
@@ -467,28 +469,111 @@ following the pair and don't touch `ntoml--current'."
       (ntoml-read-local-date)
       (ntoml-read-local-time)))
 
+(define-error 'ntoml-date-time-invalid "Invalid date time")
+(define-error 'ntoml-date-month-invalid "Invalid month")
+(define-error 'ntoml-date-mday-invalid "Invalid month day")
+(define-error 'ntoml-time-hour-invalid "Invalid hour")
+(define-error 'ntoml-time-minute-invalid "Invalid minute")
+(define-error 'ntoml-time-second-invalid "Invalid second")
+
 (defconst ntoml--time-delim (rx (or "T" "t" " ")))
 
-(defun ntoml-read-full-date ())
-(defun ntoml-read-partial-time ())
-(defun ntoml-read-full-time ())
+(defun ntoml-read-date-fullyear ()
+  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+    (let ((ret (string-to-number (match-string 0))))
+      (setq ntoml--current-year ret)
+      ret)))
+(defun ntoml-read-date-month ()
+  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+    (let ((ret (string-to-number (match-string 0))))
+      (unless (<= 1 ret 12)
+        (ntoml-signal 'ntoml-date-month-invalid ret))
+      (setq ntoml--current-month ret)
+      ret)))
+(defun ntoml-read-date-mday ()
+  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+    (let ((ret (string-to-number (match-string 0))))
+      (unless (<= 1
+                  ret
+                  (cl-case ntoml--current-month
+                    ((1 3 5 7 8 10 12) 31)
+                    ((4 6 9 11) 31)
+                    (t
+                     (if (date-leap-year-p ntoml--current-year)
+                         29
+                       28))))
+        (ntoml-signal 'ntoml-date-mday-invalid ret))
+      (setq ntoml--current-month nil
+            ntoml--current-year nil)
+      ret)))
+(defun ntoml-read-time-hour ()
+  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+    (let ((ret (string-to-number (match-string 0))))
+      (unless (<= 0 ret 23)
+        (ntoml-signal 'ntoml-time-hour-invalid ret))
+      ret)))
+(defun ntoml-read-time-minute ()
+  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+    (let ((ret (string-to-number (match-string 0))))
+      (unless (<= 0 ret 59)
+        (ntoml-signal 'ntoml-time-minute-invalid ret))
+      ret)))
+(defun ntoml-read-time-second ()
+  (when (ntoml-skip-forward-regexp (rx (= 2 digit)) :once)
+    (let ((ret (string-to-number (match-string 0))))
+      (unless (<= 0 ret 60) ; leap second
+        (ntoml-signal 'ntoml-time-second-invalid ret))
+      ret)))
+(defun ntoml-read-time-secfrac ()
+  (ntoml-skipped-region
+    (ntoml-skip-forward-regexp (rx "." (+ digit)) :once)))
+(defun ntoml-read-time-numoffset ()
+  (and (ntoml-skip-forward-regexp "[+-]" :once)
+       (ntoml-read-time-hour)
+       (ntoml-skip-chars-forward ":" (1+ (point)))
+       (ntoml-read-time-minute)))
+(defun ntoml-read-time-offset ()
+  (or (ntoml-preserve-point-on-fail
+        (ntoml-skip-forward-regexp "Z" :once))
+      (ntoml-preserve-point-on-fail
+        (ntoml-read-time-numoffset))))
 
+(defun ntoml-read-partial-time ()
+  (let (h m s frac)
+    (when (and (setq h (ntoml-read-time-hour))
+               (ntoml-skip-chars-forward ":" (1+ (point)))
+               (setq m (ntoml-read-time-minute))
+               (ntoml-skip-chars-forward ":" (1+ (point)))
+               (setq s (ntoml-read-time-second)))
+      (setq frac (ntoml-read-time-secfrac)))
+    (if frac
+        (list h m s frac)
+      (list h m s frac))))
+(defun ntoml-read-full-date ()
+  (let (y m d)
+    (when (and (setq y (ntoml-read-date-fullyear))
+               (ntoml-skip-chars-forward "-" (1+ (point)))
+               (setq m (ntoml-read-date-month))
+               (ntoml-skip-chars-forward "-" (1+ (point)))
+               (setq d (ntoml-read-date-mday)))
+      (list y m d))))
+(defun ntoml-read-full-time ()
+  (ntoml-preserve-point-on-fail
+    (and (ntoml-read-partial-time)
+         (ntoml-read-time-offset))))
 (defun ntoml-read-offset-date-time ()
   (ntoml-skipped-region
     (ntoml-read-full-date)
     (ntoml-skip-forward-regexp ntoml--time-delim)
     (ntoml-read-full-time)))
-
 (defun ntoml-read-local-date-time ()
   (ntoml-skipped-region
     (ntoml-read-full-date)
     (ntoml-skip-forward-regexp ntoml--time-delim)
     (ntoml-read-partial-time)))
-
 (defun ntoml-read-local-date ()
   (ntoml-skipped-region
     (ntoml-read-full-date)))
-
 (defun ntoml-read-local-time ()
   (ntoml-skipped-region
     (ntoml-read-partial-time)))
