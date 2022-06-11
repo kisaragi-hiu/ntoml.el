@@ -468,6 +468,12 @@ one-element list."
 (define-error 'ntoml-integer-leading-garbage "Integer has leading garbage")
 
 (defun ntoml-read-integer ()
+  "Read an integer.
+
+Return the read integer.
+
+If the integer starts with 0 when it shouldn't,
+`ntoml-integer-leading-garbage' is signaled."
   (let ((val (ntoml-skipped-region
                (or
                 (ntoml-skip-forward-regexp ntoml--hex-int)
@@ -517,7 +523,12 @@ one-element list."
       moved)))
 
 (defun ntoml-read-float ()
-  "Read a float."
+  "Read a float.
+
+Return the read float.
+
+If the float has leading garbage, `ntoml-float-leading-garbage'
+is signaled."
   (let ((start (point)))
     (cond
      ((and (ntoml-read-float-int-part)
