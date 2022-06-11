@@ -469,11 +469,11 @@ one-element list."
 
 (defun ntoml-read-integer ()
   (let ((val (ntoml-skipped-region
-                 (or
-                  (ntoml-skip-forward-regexp ntoml--hex-int)
-                  (ntoml-skip-forward-regexp ntoml--oct-int)
-                  (ntoml-skip-forward-regexp ntoml--bin-int)
-                  (ntoml-skip-forward-regexp ntoml--dec-int)))))
+               (or
+                (ntoml-skip-forward-regexp ntoml--hex-int)
+                (ntoml-skip-forward-regexp ntoml--oct-int)
+                (ntoml-skip-forward-regexp ntoml--bin-int)
+                (ntoml-skip-forward-regexp ntoml--dec-int)))))
     (when val
       (setq val (replace-regexp-in-string "_" "" val))
       (cond ((string-prefix-p "0x" val)
@@ -483,10 +483,11 @@ one-element list."
             ((string-prefix-p "0b" val)
              (string-to-number (substring val 2) 2))
             (t
-             (when (or (and (not (equal val "0"))
+             (when (or (and (not (= 1 (length val)))
                             (equal ?0 (elt val 0)))
-                       (string-prefix-p "+0" val)
-                       (string-prefix-p "-0" val))
+                       (and (not (= 2 (length val)))
+                            (or (string-prefix-p "+0" val)
+                                (string-prefix-p "-0" val))))
                (ntoml-signal 'ntoml-integer-leading-garbage
                              val))
              (string-to-number val))))))
