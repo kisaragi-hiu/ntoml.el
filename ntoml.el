@@ -348,11 +348,49 @@ one-element list."
 (define-error 'ntoml-string-not-closed "String not closed properly")
 
 (defun ntoml-read-basic-string ()
-  (when (ntoml-skip-chars-forward "\"" (1+ (point)))
-    (prog1 (ntoml-skipped-region-allow-null
-            (ntoml-skip-forward-regexp ntoml--basic-char))
-      (unless (ntoml-skip-chars-forward "\"" (1+ (point)))
-        (ntoml-signal 'ntoml-string-not-closed)))))
+  (when (= ?\" (char-after))
+    (forward-char)
+    (let ((continue t)
+          chars)
+      (while continue
+        (setq continue nil)
+        (let ((unescaped
+               (ntoml-skipped-region
+                 (ntoml-skip-forward-regexp ntoml--basic-unescaped))))
+          (when unescaped
+            (push unescaped chars)
+            (setq continue t)))
+        (when (= ?\\ (char-after))
+          (setq continue t)
+          (forward-char)
+          (if (cl-case (char-after)
+                (?\\ (push ?\\   chars))  ; slash
+                (?b  (push ?\b   chars))  ; backspace
+                (?f  (push ?\C-l chars))  ; C-l
+                (?n  (push ?\C-j chars))  ; LF
+                (?r  (push ?\C-m chars))  ; CR
+                (?t  (push ?\t   chars))) ; tab
+              (forward-char)
+            (cl-case (char-after)
+              (?u (let ((code
+                         (ntoml-skipped-region
+                           (ntoml-skip-forward-regexp (rx (= 4 hex))))))
+                    (if code
+                        (push (string-to-number code 16) chars)
+                      (ntoml-signal 'ntoml-string-invalid-escape))))
+              (?U (let ((code
+                         (ntoml-skipped-region
+                           (ntoml-skip-forward-regexp (rx (= 8 hex))))))
+                    (if code
+                        (push (string-to-number code 16) chars)
+                      (ntoml-signal 'ntoml-string-invalid-escape))))
+              (t (ntoml-signal 'ntoml-string-invalid-escape))))))
+      (unless (= ?\" (char-after))
+        (ntoml-signal 'ntoml-string-not-closed))
+      (forward-char)
+      (cl-loop for x in (reverse chars)
+               ;; concat works with lists of characters as well.
+               concat (if (numberp x) (list x) x)))))
 
 (defun ntoml-read-literal-string ()
   (when (ntoml-skip-chars-forward "'" (1+ (point)))
