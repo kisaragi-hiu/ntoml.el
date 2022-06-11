@@ -337,8 +337,6 @@ one-element list."
 (defconst ntoml--literal-char
   (format (rx (or "\t" (in "\x20-\x26") (in "\x28-\x7E") "%s"))
           ntoml--non-ascii))
-(defconst ntoml--mlb-unescaped ntoml--basic-unescaped)
-(defconst ntoml--mlb-char (ntoml-regexp-or ntoml--mlb-unescaped ntoml--escaped))
 (defconst ntoml--mll-char
   (format (rx (or "\t" (in "\x20-\x26") (in "\x28-\x7E") "%s"))
           ntoml--non-ascii))
@@ -347,49 +345,74 @@ one-element list."
 
 (define-error 'ntoml-string-not-closed "String not closed properly")
 
+(defun ntoml-read-basic-string-content (&optional multiline)
+  "Read the content of a basic string.
+
+When MULTILINE is non-nil, read for a multiline basic string."
+  (let ((continue t)
+        chars)
+    (while continue
+      (setq continue nil)
+      (let ((unescaped
+             (ntoml-skipped-region
+               (ntoml-skip-forward-regexp
+                (if multiline
+                    (concat ntoml--basic-unescaped
+                            "\\|"
+                            ntoml--newline)
+                  ntoml--basic-unescaped)))))
+        (when unescaped
+          (push unescaped chars)
+          (setq continue t)))
+      (when (and multiline (eql ?\" (char-after)))
+        (unless (and (eql ?\" (char-after (1+ (point))))
+                     (eql ?\" (char-after (+ 2 (point)))))
+          (setq continue t)
+          (push ?\" chars)
+          (forward-char)))
+      (when (equal ?\\ (char-after))
+        (setq continue t)
+        (forward-char)
+        (let ((temp (char-after)))
+          (cond
+           ((and multiline
+                 (or (eql ?\C-j temp)
+                     (and (eql ?\C-m temp)
+                          (eql ?\C-j (char-after (1+ (point)))))))
+            (while (or (ntoml-read-newline)
+                       (ntoml-read-whitespace))))
+           ((eql temp ?\\) (push ?\\ chars) (forward-char))
+           ((eql temp ?\") (push ?\" chars) (forward-char))
+           ((eql temp ?b)  (push ?\b chars) (forward-char)) ; backspace
+           ((eql temp ?f)  (push ?\f chars) (forward-char)) ; C-l
+           ((eql temp ?n)  (push ?\n chars) (forward-char)) ; LF
+           ((eql temp ?r)  (push ?\r chars) (forward-char)) ; CR
+           ((eql temp ?t)  (push ?\t chars) (forward-char)) ; tab
+           ((eql temp ?u)
+            (let ((code
+                   (progn
+                     (forward-char)
+                     (ntoml-skipped-region
+                       (ntoml-skip-forward-regexp (rx (= 4 hex)))))))
+              (if code
+                  (push (string-to-number code 16) chars)
+                (ntoml-signal 'ntoml-string-invalid-escape))))
+           ((eql temp ?U)
+            (let ((code
+                   (progn
+                     (forward-char)
+                     (ntoml-skipped-region
+                       (ntoml-skip-forward-regexp (rx (= 8 hex)))))))
+              (if code
+                  (push (string-to-number code 16) chars)
+                (ntoml-signal 'ntoml-string-invalid-escape))))
+           (t (ntoml-signal 'ntoml-string-invalid-escape))))))
+    chars))
+
 (defun ntoml-read-basic-string ()
   (when (equal ?\" (char-after))
     (forward-char)
-    (let ((continue t)
-          chars)
-      (while continue
-        (setq continue nil)
-        (let ((unescaped
-               (ntoml-skipped-region
-                 (ntoml-skip-forward-regexp ntoml--basic-unescaped))))
-          (when unescaped
-            (push unescaped chars)
-            (setq continue t)))
-        (when (equal ?\\ (char-after))
-          (setq continue t)
-          (forward-char)
-          (if (cl-case (char-after)
-                (?\\ (push ?\\   chars))  ; slash
-                (?\" (push ?\"   chars))  ; double quote
-                (?b  (push ?\b   chars))  ; backspace
-                (?f  (push ?\C-l chars))  ; C-l
-                (?n  (push ?\C-j chars))  ; LF
-                (?r  (push ?\C-m chars))  ; CR
-                (?t  (push ?\t   chars))) ; tab
-              (forward-char)
-            (cl-case (char-after)
-              (?u (let ((code
-                         (progn
-                           (forward-char)
-                           (ntoml-skipped-region
-                             (ntoml-skip-forward-regexp (rx (= 4 hex)))))))
-                    (if code
-                        (push (string-to-number code 16) chars)
-                      (ntoml-signal 'ntoml-string-invalid-escape))))
-              (?U (let ((code
-                         (progn
-                           (forward-char)
-                           (ntoml-skipped-region
-                             (ntoml-skip-forward-regexp (rx (= 8 hex)))))))
-                    (if code
-                        (push (string-to-number code 16) chars)
-                      (ntoml-signal 'ntoml-string-invalid-escape))))
-              (t (ntoml-signal 'ntoml-string-invalid-escape))))))
+    (let ((chars (ntoml-read-basic-string-content)))
       (unless (equal ?\" (char-after))
         (ntoml-signal 'ntoml-string-not-closed))
       (forward-char)
@@ -415,10 +438,12 @@ one-element list."
 (defun ntoml-read-ml-basic-string ()
   (when (ntoml-skip-forward-regexp "\"\"\"" :once)
     (ntoml-read-newline :once)
-    (prog1 (ntoml-skipped-region-allow-null
-            (ntoml-read-ml-basic-body))
+    (let ((chars (ntoml-read-basic-string-content t)))
       (unless (ntoml-skip-forward-regexp "\"\"\"" :once)
-        (ntoml-signal 'ntoml-string-not-closed)))))
+        (ntoml-signal 'ntoml-string-not-closed))
+      (cl-loop for x in (reverse chars)
+               ;; concat works with lists of characters as well.
+               concat (if (numberp x) (list x) x)))))
 
 (defun ntoml-read-mll-quotes ()
   (ntoml-skip-forward-regexp (rx (repeat 1 2 "'")) :once))
@@ -429,27 +454,6 @@ one-element list."
            (ntoml-read-mll-quotes)
            (ntoml-skip-forward-regexp ntoml--mll-content)))
     (ntoml-read-mll-quotes)))
-
-(defun ntoml-read-mlb-quotes ()
-  (ntoml-skip-forward-regexp (rx (repeat 1 2 "\"")) :once))
-
-(defun ntoml-read-mlb-escaped-nl ()
-  (ntoml-skip-forward-regexp (regexp-quote ntoml--escape) :once)
-  (ntoml-read-whitespace)
-  (ntoml-read-newline)
-  (while (or (ntoml-read-whitespace)
-             (ntoml-read-newline))))
-(defun ntoml-read-mlb-content ()
-  (or (ntoml-skip-forward-regexp ntoml--mlb-char)
-      (ntoml-read-newline)
-      (ntoml-read-mlb-escaped-nl)))
-(defun ntoml-read-ml-basic-body ()
-  (while (ntoml-read-mlb-content))
-  (when (ntoml-preserve-point-on-fail
-          (and
-           (ntoml-read-mlb-quotes)
-           (ntoml-read-mlb-content)))
-    (ntoml-read-mlb-quotes)))
 
 ;;;; DONE Integer
 
