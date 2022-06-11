@@ -214,8 +214,9 @@ Return nil if point hasn't moved."
 If INLINE is non-nil, don't signal an error when there is text
 following the pair and don't touch `ntoml--current'."
   (let (k v)
-    (when (and (setq k (ntoml-read-key))
-               (ntoml-read-keyval-sep))
+    (when (setq k (ntoml-read-key))
+      (unless (ntoml-read-keyval-sep)
+        (ntoml-signal 'ntoml-keyval-invalid))
       (setq v (ntoml-read-val))
       (unless (or inline (ntoml-eolp))
         (ntoml-signal 'ntoml-keyval-trailing-garbage))
