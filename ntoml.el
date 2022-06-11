@@ -365,6 +365,7 @@ one-element list."
           (forward-char)
           (if (cl-case (char-after)
                 (?\\ (push ?\\   chars))  ; slash
+                (?\" (push ?\"   chars))  ; double quote
                 (?b  (push ?\b   chars))  ; backspace
                 (?f  (push ?\C-l chars))  ; C-l
                 (?n  (push ?\C-j chars))  ; LF
@@ -373,14 +374,18 @@ one-element list."
               (forward-char)
             (cl-case (char-after)
               (?u (let ((code
-                         (ntoml-skipped-region
-                           (ntoml-skip-forward-regexp (rx (= 4 hex))))))
+                         (progn
+                           (forward-char)
+                           (ntoml-skipped-region
+                             (ntoml-skip-forward-regexp (rx (= 4 hex)))))))
                     (if code
                         (push (string-to-number code 16) chars)
                       (ntoml-signal 'ntoml-string-invalid-escape))))
               (?U (let ((code
-                         (ntoml-skipped-region
-                           (ntoml-skip-forward-regexp (rx (= 8 hex))))))
+                         (progn
+                           (forward-char)
+                           (ntoml-skipped-region
+                             (ntoml-skip-forward-regexp (rx (= 8 hex)))))))
                     (if code
                         (push (string-to-number code 16) chars)
                       (ntoml-signal 'ntoml-string-invalid-escape))))
