@@ -12,7 +12,7 @@
     (funcall func)))
 
 (describe "ntoml-read-string"
-  (it "ignores  values"
+  (it "ignores values"
     (expect (test-buf #'ntoml-read-string "true")
             :to-be nil)
     (expect (test-buf #'ntoml-read-string "not quoted")
@@ -24,7 +24,17 @@
     (expect (test-buf #'ntoml-read-string "'my literal string'")
             :to-equal
             "my literal string"))
-  (xit "escapes sequences strings"
+  (it "parses multiline strings"
+    (expect (test-buf #'ntoml-read-string "\"\"\"
+multi
+line
+string \\
+          whitespace escaped\"\"\"")
+            :to-equal
+            "multi
+line
+string whitespace escaped"))
+  (it "escapes sequences"
     (expect (test-buf #'ntoml-read-string "\"my string\\nwith a newline\"")
             :to-equal
             "my string\nwith a newline")))
