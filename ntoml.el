@@ -460,20 +460,28 @@ one-element list."
 (defconst ntoml--float-int-part ntoml--dec-int)
 (defconst ntoml--exp (concat "e" ntoml--float-exp-part))
 
+(defun ntoml-read-float-int-part ()
+  (let ((moved (ntoml-skip-forward-regexp ntoml--float-int-part)))
+    (when moved
+      (when (or (and (> moved 1)
+                     (= ?0 (char-after (- (point) moved))))
+                (and (> moved 2)
+                     (memql (char-after (- (point) moved))
+                            '(?+ ?-))
+                     (= ?0 (char-after (- (point) moved -1)))))
+        (ntoml-signal 'ntoml-float-leading-garbage))
+      moved)))
+
 (defun ntoml-read-float ()
   "Read a float."
   (let ((start (point)))
     (cond
-     ((and (ntoml-skip-forward-regexp ntoml--float-int-part)
+     ((and (ntoml-read-float-int-part)
            (or (ntoml-skip-forward-regexp ntoml--exp :once)
                (cl-some #'identity
                         (list (ntoml-skip-forward-regexp ntoml--frac :once)
                               (ntoml-skip-forward-regexp ntoml--exp :once)))))
       (let ((val (buffer-substring-no-properties start (point))))
-        (when (or (equal ?0 (elt val 0))
-                  (string-prefix-p "+0" val)
-                  (string-prefix-p "-0" val))
-          (ntoml-signal 'ntoml-float-leading-garbage))
         (string-to-number
          (replace-regexp-in-string "_" "" val))))
      ((ntoml-skipped-region
