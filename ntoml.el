@@ -685,7 +685,7 @@ one-element list."
 
 (define-error 'ntoml-table-key-invalid "Invalid table key")
 (define-error 'ntoml-table-trailing-garbage "Trailing garbage after table key")
-(define-error 'ntoml-table-redefine "Tried to use non-table key as table")
+(define-error 'ntoml-table-redefine "Trying to redefine table")
 (define-error 'ntoml-table-duplicate-key "Duplicate key")
 
 (defun ntoml-array-table-flush ()
@@ -740,9 +740,11 @@ When we're reading something invalid, signal an error."
               (setq ntoml--current-location keys)
               (let ((current-value (a-get-in ntoml--current keys)))
                 (if current-value
-                    (cond ((vectorp current-value))
-                          ((listp current-value))
-                          (t (ntoml-signal 'ntoml-table-redefine)))
+                    (unless (or (vectorp current-value)
+                                ;; We may not append with dotted keys
+                                (and (listp current-value)
+                                     (not (> (length keys) 1))))
+                      (ntoml-signal 'ntoml-table-redefine))
                   (setq ntoml--current (a-assoc-in ntoml--current keys nil))))
               keys)
           (ntoml-signal 'ntoml-table-key-invalid))))))
