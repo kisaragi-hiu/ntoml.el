@@ -348,7 +348,7 @@ one-element list."
 (define-error 'ntoml-string-not-closed "String not closed properly")
 
 (defun ntoml-read-basic-string ()
-  (when (= ?\" (char-after))
+  (when (equal ?\" (char-after))
     (forward-char)
     (let ((continue t)
           chars)
@@ -360,7 +360,7 @@ one-element list."
           (when unescaped
             (push unescaped chars)
             (setq continue t)))
-        (when (= ?\\ (char-after))
+        (when (equal ?\\ (char-after))
           (setq continue t)
           (forward-char)
           (if (cl-case (char-after)
@@ -385,7 +385,7 @@ one-element list."
                         (push (string-to-number code 16) chars)
                       (ntoml-signal 'ntoml-string-invalid-escape))))
               (t (ntoml-signal 'ntoml-string-invalid-escape))))))
-      (unless (= ?\" (char-after))
+      (unless (equal ?\" (char-after))
         (ntoml-signal 'ntoml-string-not-closed))
       (forward-char)
       (cl-loop for x in (reverse chars)
