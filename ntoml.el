@@ -207,31 +207,40 @@ Return nil if point hasn't moved."
 
 (define-error 'ntoml-keyval-invalid "Invalid key-value pair")
 (define-error 'ntoml-keyval-trailing-garbage "Trailing garbage after key-value pair")
+(define-error 'ntoml-keyval-duplicate "Duplicate key")
 
-(defun ntoml-read-keyval (&optional inline)
+(defun ntoml-read-keyval (&optional inline?)
   "Read a key-value pair.
 
-If INLINE is non-nil, don't signal an error when there is text
+If INLINE? is non-nil, don't signal an error when there is text
 following the pair and don't touch `ntoml--current'."
   (let (k v)
     (when (setq k (ntoml-read-key))
       (unless (ntoml-read-keyval-sep)
         (ntoml-signal 'ntoml-keyval-invalid))
       (setq v (ntoml-read-val))
-      (unless (or inline (ntoml-eolp))
+      (unless (or inline? (ntoml-eolp))
         (ntoml-signal 'ntoml-keyval-trailing-garbage))
       (unless v
         (ntoml-signal 'ntoml-keyval-invalid))
-      (if inline
-          (cons k
-                (cond ((eq v :empty) nil)
-                      (t v)))
-        (if ntoml--reading-array-table
-            (push (cons k v) ntoml--array-table-pending)
+      (cond
+       (inline?
+        (cons k
+              (cond ((eq v :empty) nil)
+                    (t v))))
+       (ntoml--reading-array-table
+        (push (cons k v) ntoml--array-table-pending))
+       (t
+        (let ((keys (append ntoml--current-location
+                            (list k))))
+          (when (a-get-in ntoml--current keys)
+            (ntoml-signal 'ntoml-keyval-duplicate))
           (setq ntoml--current
-                (a-assoc-in ntoml--current
-                            (append ntoml--current-location (list k))
-                            v)))))))
+                (a-assoc-in
+                 ntoml--current
+                 (append ntoml--current-location
+                         (list k))
+                 v))))))))
 
 (defun ntoml-read-keyval-sep ()
   (ntoml-read-whitespace)

@@ -16,10 +16,13 @@ tests/toml-test:
 
 GREP := | grep -a -i "fail"
 
+test-decoder-diff:
+	bash decoder-test-diff
+
 test-decoder: tests/toml-test
 	bash tests/test-decoder $(GREP)
 
 test-encoder: tests/toml-test
 	bash tests/test-encoder $(GREP)
 
-.PHONY: test compile
+.PHONY: test compile test-decoder test-encoder test-decoder-diff
