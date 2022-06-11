@@ -440,7 +440,8 @@ one-element list."
             ((string-prefix-p "0b" val)
              (string-to-number (substring val 2) 2))
             (t
-             (when (or (equal ?0 (elt val 0))
+             (when (or (and (not (equal val "0"))
+                            (equal ?0 (elt val 0)))
                        (string-prefix-p "+0" val)
                        (string-prefix-p "-0" val))
                (ntoml-signal 'ntoml-integer-leading-garbage
