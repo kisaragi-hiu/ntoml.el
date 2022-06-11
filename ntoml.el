@@ -179,7 +179,7 @@ Return nil if point hasn't moved."
 
 (defun ntoml-read-expression ()
   (ntoml-skipped-region
-    (ntoml-read-whitespace)
+    (ntoml-read-ws/comment/newline)
     (and (or (ntoml-read-keyval)
              (ntoml-read-table))
          (ntoml-read-whitespace))
@@ -208,14 +208,15 @@ Return nil if point hasn't moved."
 (define-error 'ntoml-keyval-invalid "Invalid key-value pair")
 (define-error 'ntoml-keyval-trailing-garbage "Trailing garbage after key-value pair")
 (define-error 'ntoml-keyval-duplicate "Duplicate key")
+(define-error 'ntoml-keyval-redefine-table "Value already defined as a non-table")
 
 (defun ntoml-read-keyval (&optional inline?)
   "Read a key-value pair.
 
 If INLINE? is non-nil, don't signal an error when there is text
 following the pair and don't touch `ntoml--current'."
-  (let (k v)
-    (when (setq k (ntoml-read-key))
+  (let (keys v)
+    (when (setq keys (ntoml-read-key))
       (unless (ntoml-read-keyval-sep)
         (ntoml-signal 'ntoml-keyval-invalid))
       (setq v (ntoml-read-val))
@@ -225,21 +226,24 @@ following the pair and don't touch `ntoml--current'."
         (ntoml-signal 'ntoml-keyval-invalid))
       (cond
        (inline?
-        (cons k
-              (cond ((eq v :empty) nil)
-                    (t v))))
+        (car
+         (a-assoc-in nil keys (cond ((eq v :empty) nil)
+                                    (t v)))))
        (ntoml--reading-array-table
-        (push (cons k v) ntoml--array-table-pending))
+        (setq ntoml--array-table-pending
+              (a-assoc-in ntoml--array-table-pending keys v)))
        (t
-        (let ((keys (append ntoml--current-location
-                            (list k))))
-          (when (a-get-in ntoml--current keys)
-            (ntoml-signal 'ntoml-keyval-duplicate))
+        (let ((keys (append ntoml--current-location keys)))
+          (condition-case _
+              (when (a-get-in ntoml--current keys)
+                (ntoml-signal 'ntoml-keyval-duplicate))
+            ;; `a-get', called by `a-get-in', sends a user-error if
+            ;; we're traversing into a non-alist.
+            (user-error (ntoml-signal 'ntoml-keyval-redefine-table)))
           (setq ntoml--current
                 (a-assoc-in
                  ntoml--current
-                 (append ntoml--current-location
-                         (list k))
+                 keys
                  v))))))))
 
 (defun ntoml-read-keyval-sep ()
@@ -250,8 +254,14 @@ following the pair and don't touch `ntoml--current'."
 ;;;; DONE Key
 
 (defun ntoml-read-key ()
+  "Read a key.
+
+Return a list of keys. If the key is a simple key, this will be a
+one-element list."
   (let (ret)
-    (push (ntoml-read-simple-key) ret)
+    (let ((simple-key (ntoml-read-simple-key)))
+      (when simple-key
+        (push simple-key ret)))
     (catch 'ret
       (while t
         (let ((prev (point))
@@ -263,8 +273,7 @@ following the pair and don't touch `ntoml--current'."
             (throw 'ret nil)))))
     (if (cdr ret)
         (nreverse ret)
-      ;; Return first item if it is the only item (simple key)
-      (car ret))))
+      ret)))
 
 (defun ntoml-read-simple-key ()
   (let ((v (or (ntoml-read-quoted-key)
