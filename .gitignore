@@ -7,3 +7,6 @@ tests/*
 !tests/encoder-wrapper
 !tests/test-decoder
 !tests/test-encoder
+
+test-result
+test-result-old

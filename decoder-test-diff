@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+if [ "$1" == "-h" ]; then
+	echo "$0 [tests]"
+	echo ""
+	echo "Run <tests> (or all tests) then diff with previous run."
+	exit 0
+fi
+
+if ! [ -f test-result ]; then
+	bash tests/test-decoder "$@" | grep -a -i "fail" | tee test-result
+else
+	mv test-result test-result-old
+	bash tests/test-decoder "$@" | grep -a -i "fail" | tee test-result
+	if command -v delta >/dev/null; then
+		delta test-result-old test-result
+	else
+		diff test-result-old test-result
+	fi
+fi
