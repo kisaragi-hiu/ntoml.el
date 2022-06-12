@@ -5,4 +5,10 @@ Goal: TOML 1.0 decoder / encoder
 Name subject to change.
 
 ** TODO pass 1.0 decoder tests
+** TODO implement array tables
+
+#+begin_quote
+The last syntax that has not yet been described allows writing arrays of tables. These can be expressed by using a header with a name in double brackets. The first instance of that header defines the array and its first table element, and each subsequent instance creates and defines a new table element in that array. The tables are inserted into the array in the order encountered.
+#+end_quote
+
 ** TODO encoder
