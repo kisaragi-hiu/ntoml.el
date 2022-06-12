@@ -455,8 +455,14 @@ When MULTILINE is non-nil, read for a multiline basic string."
 
 (defun ntoml-read-mll-quotes ()
   (ntoml-skip-forward-regexp (rx (repeat 1 2 "'")) :once))
+
 (defun ntoml-read-ml-literal-body ()
-  (while (ntoml-skip-forward-regexp ntoml--mll-content))
+  (while (ntoml-skip-forward-regexp ntoml--mll-content)
+    ;; Skip through quotes that don't form the entire separator.
+    (when (eql ?\' (char-after))
+      (unless (and (eql ?\' (char-after (1+ (point))))
+                   (eql ?\' (char-after (+ 2 (point)))))
+        (forward-char))))
   (when (ntoml-preserve-point-on-fail
           (and
            (ntoml-read-mll-quotes)
