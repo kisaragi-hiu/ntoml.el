@@ -1,5 +1,8 @@
-# nTOML.el
+* nTOML.el
 
 Goal: TOML 1.0 decoder / encoder
 
 Name subject to change.
+
+** TODO pass 1.0 decoder tests
+** TODO encoder

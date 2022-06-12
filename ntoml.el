@@ -878,14 +878,14 @@ When we're not reading an array table, return nil.
 When we're reading something invalid, signal an error."
   (ntoml-preserve-point-on-fail
     (let (keys)
-      (when (ntoml-skip-forward-regexp (rx "[[") :once)
+      (when (and (eql ?\[ (char-after))
+                 (eql ?\[ (char-after (1+ (point)))))
+        (forward-char 2)
         (ntoml-read-whitespace)
         (setq keys (ntoml-read-key))
         (ntoml-read-whitespace)
         (if (ntoml-skip-forward-regexp (rx "]]") :once)
             (when keys
-              (unless (listp keys)
-                (setq keys (list keys)))
               (ntoml-array-table-flush)
               (setq ntoml--current-location keys
                     ntoml--reading-array-table t
