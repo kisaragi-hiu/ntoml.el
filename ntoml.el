@@ -210,6 +210,10 @@ Return nil if point hasn't moved."
 (define-error 'ntoml-keyval-duplicate "Duplicate key")
 (define-error 'ntoml-keyval-redefine-table "Value already defined as a non-table")
 
+(defun ntoml-normalize-empty (v)
+  "Return V, unless it is `:empty', in which case return nil."
+  (if (eq v :empty) nil v))
+
 (defun ntoml-read-keyval (&optional inline?)
   "Read a key-value pair.
 
@@ -224,11 +228,10 @@ following the pair and don't touch `ntoml--current'."
         (ntoml-signal 'ntoml-keyval-trailing-garbage))
       (unless v
         (ntoml-signal 'ntoml-keyval-invalid))
+      (setq v (ntoml-normalize-empty v))
       (cond
        (inline?
-        (car
-         (a-assoc-in nil keys (cond ((eq v :empty) nil)
-                                    (t v)))))
+        (car (a-assoc-in nil keys v)))
        (ntoml--reading-array-table
         (setq ntoml--array-table-pending
               (a-assoc-in ntoml--array-table-pending keys v)))
@@ -294,6 +297,11 @@ one-element list."
 ;;;; Val
 
 (defun ntoml-read-val ()
+  "Read a value.
+
+Some functions return `:empty' to represent that an empty value
+has been found. The caller is expected to call
+`ntoml-normalize-empty' to convert that to a usable value."
   (or
    (ntoml-read-string)
    (ntoml-read-boolean)
@@ -736,7 +744,7 @@ is signaled."
   (cl-loop
    do (ntoml-read-ws/comment/newline)
    when (ntoml-read-val)
-   collect it
+   collect (ntoml-normalize-empty it)
    do (ntoml-read-ws/comment/newline)
    while (ntoml-skip-forward-regexp (rx ","))))
 
@@ -811,11 +819,13 @@ When we're reading something invalid, signal an error."
 (defun ntoml-read-inline-table ()
   (ntoml-preserve-point-on-fail
     (let (ret)
-      (when (ntoml-skip-forward-regexp (rx "{"))
+      (when (eql ?\{ (char-after))
+        (forward-char)
         (ntoml-read-whitespace)
         (setq ret (ntoml-read-inline-table-keyvals))
         (ntoml-read-whitespace)
-        (when (ntoml-skip-forward-regexp (rx "}"))
+        (when (eql ?\} (char-after))
+          (forward-char)
           ;; We need a way to distinguish between an empty alist and
           ;; this function not finding anything.
           ;;
