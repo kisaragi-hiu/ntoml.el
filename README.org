@@ -2,7 +2,7 @@
 
 Goal: TOML 1.0 decoder / encoder
 
-Name subject to change.
+I'm probably sticking with this name.
 
 ** TODO pass 1.0 decoder tests
 ** TODO implement array tables
